@@ -76,10 +76,10 @@ ivec2 MyGetTextSize(GUIContext* guiContext, const char* text, uint32_t length) {
 	for (uint32_t index = 0; index < length; ++index) {
 		if (text[index] >= FONT_BEGIN && text[index] < FONT_END) {
 			const stbtt_bakedchar *b = font->glyphs + text[index] - FONT_BEGIN;
-			x += b->xadvance;
+			x = floor(x + b->xadvance + 0.5f);
 		}
 	}
-	return {(int32_t)x, (int32_t)y};
+	return {(int32_t)(x + 0.0f), (int32_t)(y + 0.0f)};
 }
 
 void MyDrawChar(GUIContext* context, char c, float& pos_x, float& pos_y, const color& color) {

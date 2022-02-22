@@ -167,6 +167,16 @@ void ResizeWindow() {
 						}
 						
 						Panel(SplitLayout(true, 0.5f)) {
+							static const char* labels[] = {
+								"Monday", "Tuesday", "Wednesday", "Thursday", "Friday"
+							};
+							static const uint32_t count = sizeof(labels) / sizeof(labels[0]);
+							static int value = 0;
+							Label("Day", GUI_VISIBLE | GUI_FOREGROUND  | GUI_ALIGN_LEFT_TOP);
+							Spinner(value, labels, count);
+						}
+						
+						Panel(SplitLayout(true, 0.5f)) {
 							static bool value = true;
 							Label("Subtitle", GUI_VISIBLE | GUI_FOREGROUND  | GUI_ALIGN_LEFT_TOP);
 							CheckBox(value);
@@ -191,7 +201,7 @@ void ResizeWindow() {
 							}
 						}
 
-						DummyElement(2);
+						DummyElement(1);
 						
 						Layout* layout = GetLayout();
 						layout->max.x = 300;
@@ -330,6 +340,19 @@ void StyleConfigurator() {
 				float proc = (float)context->style.values[GUI_VALUE_GROUP_OFFSET] / 255.0f;
 				if (Slider(proc)) {
 					context->style.values[GUI_VALUE_GROUP_OFFSET] = (uint8_t)(proc * 255.0f);
+				}
+			}
+			Group("RANGE") {
+				static float min = 0.0f;
+				static float max = 1.0f;
+				if (RangeSlider(min, max, false)) {
+					printf("Range: [%f, %f]\n", min, max);
+				}
+			}
+			Group("TOGGLE") {
+				static uint32_t flags = GUI_DEFAULT_FLAGS_BUTTON;
+				if (Button("Toggle", &flags)) {
+					printf("ToggleButton: %s\n", (flags & GUI_CLICKED) ? "pressed" : "released");
 				}
 			}
 		}

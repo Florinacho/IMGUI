@@ -6,7 +6,7 @@ CC=mingw32-g++.exe
 C_FLAGS=-O3
 
 #-Wl,-subsystem,windows
-L_FLAGS=-O3
+L_FLAGS=-flto
 
 LIBS=-lgdi32
 
