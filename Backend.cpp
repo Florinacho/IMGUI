@@ -1,10 +1,14 @@
+#include <windows.h>
+#include <stdio.h>
+
 #include "Backend.h"
 
-#include <stdio.h>
+//#define IMGUI_INCLUDE_WINDOW_MANAGER
+//#define IMGUI_IMPLEMENTATION
+#include "GUI.h"
 
 #define STB_TRUETYPE_IMPLEMENTATION
 #include "stb_truetype.h"
-
 
 Font gfont;
 Font* font = &gfont;
@@ -43,6 +47,36 @@ int LoadTTFFont(Font* __font, const char* filename, float size) {
 	return 0;
 }
 
+void FreeTTFFont(Font* font) {
+	delete [] font->bitmap;
+	delete [] font->glyphs;
+}
+
+int Win32GUIInit(Win32GUIContext* win32GUI, const char* fontFilename, float fontSize) {
+	GUIContextInit(&win32GUI->context);
+	win32GUI->context.drawLine = MyDrawLine;
+	win32GUI->context.drawQuad = MyDrawQuad;
+	win32GUI->context.drawText = MyDrawText;
+	win32GUI->context.drawIcon = MyDrawIcon;
+	win32GUI->context.getTextSize = MyGetTextSize;
+	win32GUI->context.opaqueData = NULL;
+
+	win32GUI->context.keyMap[GUI_KEY_HOME  ] = VK_HOME;
+	win32GUI->context.keyMap[GUI_KEY_END   ] = VK_END;
+	win32GUI->context.keyMap[GUI_KEY_LEFT  ] = VK_LEFT;
+	win32GUI->context.keyMap[GUI_KEY_RIGHT ] = VK_RIGHT;
+	win32GUI->context.keyMap[GUI_KEY_BACK  ] = VK_BACK;
+	win32GUI->context.keyMap[GUI_KEY_DELETE] = VK_DELETE;
+	
+	if (LoadTTFFont(&win32GUI->font, fontFilename, fontSize) == 0) {
+		GUISetActiveContext(&win32GUI->context);
+	}
+	return 1;
+}
+void Win32GUIUninit(Win32GUIContext* win32GUI) {
+	FreeTTFFont(&win32GUI->font);
+}
+
 void MyDrawLine(GUIContext* context, const ivec2& begin, const ivec2& end, const color& color) {
 	if (begin.x == end.x) {
 		MyDrawQuad(context, {begin.x, begin.y, end.x + 1, end.y}, color);
@@ -72,7 +106,7 @@ ivec2 MyGetTextSize(GUIContext* guiContext, const char* text, uint32_t length) {
 	static const uint8_t FONT_BEGIN = 32;
 	static const uint8_t FONT_END = 128;
 	float x = 0.0f;
-	float y = 16.0f;
+	float y = 16.0f; // TODO: Calculate this
 	for (uint32_t index = 0; index < length; ++index) {
 		if (text[index] >= FONT_BEGIN && text[index] < FONT_END) {
 			const stbtt_bakedchar *b = font->glyphs + text[index] - FONT_BEGIN;
@@ -88,29 +122,24 @@ void MyDrawChar(GUIContext* context, char c, float& pos_x, float& pos_y, const c
 	const int32_t FONT_BITMAP_WIDTH = 512;
 	const int32_t FONT_BITMAP_HEIGHT = 512;
 
-	if (c < 32 && c >= 128) {
+	if (c < font->begin && c >= font->end) {
 		return;
 	}
 
+	const uint32_t pixel = color.w   << 24 | color.x   << 16 | color.y   <<  8 | color.z   <<  0;
 	const stbtt_bakedchar *b = font->glyphs + c - 32;
+	
 	uint32_t* pixels = (uint32_t*)context->opaqueData;
 	
-	const uint32_t width  = b->x1 - b->x0;
-	const uint32_t height = b->y1 - b->y0;
-	
-	for (int32_t y = 0; y < height; ++y) {
-		for (int32_t x = 0; x < width; ++x) {
+	for (int32_t y = 0; y < b->y1 - b->y0; ++y) {
+		for (int32_t x = 0; x < b->x1 - b->x0; ++x) {
 			const uint32_t sourceIndex = (b->y0 + y) * FONT_BITMAP_WIDTH + b->x0 + x;
 			const int32_t px = pos_x + x + (b->xoff + 0.5f);
 			const int32_t py = pos_y + y + (b->yoff + 0.5f);
-			
 			if (px >= 0 && px < SCREEN_WIDTH && py >= 0 && py < SCREEN_HEIGHT) {
 				const uint32_t destIndex = py * SCREEN_WIDTH + px;
 				const uint8_t luminance = font->bitmap[sourceIndex];
-				
 				const uint32_t mask  = luminance << 24 | luminance << 16 | luminance <<  8 | luminance <<  0;
-				const uint32_t pixel = color.w   << 24 | color.x   << 16 | color.y   <<  8 | color.z   <<  0;
-				
 				pixels[destIndex] = (pixels[destIndex] & ~mask) | (pixel & mask);
 			}
 		}

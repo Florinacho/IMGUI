@@ -362,98 +362,100 @@ void EndPanel(Layout*);
 		___tmp.run_statement; \
 		EndPanel(&___tmp))
 
+static GUIContext* context = NULL;
+
 #if defined (IMGUI_INCLUDE_WINDOW_MANAGER)
-static void WMBringIndexToFront(GUIContext* manager, int32_t selected) {
-	if (selected >= 0 && selected < manager->count) {
-		const WindowInfo tmp = manager->windows[selected];
-		for (int32_t index = selected; index < manager->count - 1; ++index) {
-			manager->windows[index] = manager->windows[index + 1];
+static void WMBringIndexToFront(int32_t selected) {
+	if (selected >= 0 && selected < context->count) {
+		const WindowInfo tmp = context->windows[selected];
+		for (int32_t index = selected; index < context->count - 1; ++index) {
+			context->windows[index] = context->windows[index + 1];
 		}
-		manager->windows[manager->count - 1] = tmp;
+		context->windows[context->count - 1] = tmp;
 	}
 }
 
-static int32_t WMGetIndexByID(GUIContext* manager, int32_t id) {
-	for (uint32_t index = 0; index < manager->count; ++index) {
-		if (manager->windows[index].id == id) {
+static int32_t WMGetIndexByID(int32_t id) {
+	for (uint32_t index = 0; index < context->count; ++index) {
+		if (context->windows[index].id == id) {
 			return index;
 		}
 	}
 	return -1;
 }
 
-static bool WMRegister(GUIContext* manager, ivec4* bounds, uint32_t* flags, int32_t id = -1) {
-	if (manager != nullptr && manager->count < GUIContext::MAX_WINDOW_COUNT) {
-		manager->windows[manager->count].bounds = bounds;
-		manager->windows[manager->count].flags = flags;
-		manager->windows[manager->count].id = (id == -1) ? manager->count : id;
-		manager->count += 1;
+static bool WMRegister(ivec4* bounds, uint32_t* flags, int32_t id = -1) {
+	if (context != nullptr && context->count < GUIContext::MAX_WINDOW_COUNT) {
+		context->windows[context->count].bounds = bounds;
+		context->windows[context->count].flags = flags;
+		context->windows[context->count].id = (id == -1) ? context->count : id;
+		context->count += 1;
 		return true;
 	}
 	return false;
 }
 
-static bool WMUnregister(GUIContext* manager, int32_t id) {
-	int32_t windowIndex = WMGetIndexByID(manager, id);
+static bool WMUnregister(GUIContext* context, int32_t id) {
+	int32_t windowIndex = WMGetIndexByID(id);
 	if (windowIndex < 0) {
 		return false;
 	}
-	for (uint32_t index = windowIndex; index < manager->count - 1; ++index) {
-		manager->windows[index] = manager->windows[index + 1];
+	for (uint32_t index = windowIndex; index < context->count - 1; ++index) {
+		context->windows[index] = context->windows[index + 1];
 	}
-	manager->count--;
+	context->count--;
 	return true;
 }
 
 
-static void WMBringIDToFront(GUIContext* manager, int32_t id) {
-	WMBringIndexToFront(manager, WMGetIndexByID(manager, id));
+static void WMBringIDToFront(int32_t id) {
+	WMBringIndexToFront(WMGetIndexByID(id));
 }
 
-static void WMOnCursorEvent(GUIContext* manager, int32_t x, int32_t y) {
+static void WMOnCursorEvent(int32_t x, int32_t y) {
 	bool receiveEvents = true;
-	for (int32_t index = manager->count - 1; index >= 0; --index) {
-		if (((*manager->windows[index].flags) & GUI_VISIBLE) && 
-			(RECT_CONTAINS_POINT(*manager->windows[index].bounds, manager->mousePosition))) {
-			manager->windows[index].receiveEvents = receiveEvents;
+	for (int32_t index = context->count - 1; index >= 0; --index) {
+		if (((*context->windows[index].flags) & GUI_VISIBLE) && 
+			(RECT_CONTAINS_POINT(*context->windows[index].bounds, context->mousePosition))) {
+			context->windows[index].receiveEvents = receiveEvents;
 			receiveEvents = false;
 		} else {
-			manager->windows[index].receiveEvents = false;
+			context->windows[index].receiveEvents = false;
 		}
 	}
 	GUIOnCursorEvent(x, y);
 }
 
-static void WMOnButtonEvent(GUIContext* manager, int32_t button, int32_t value) {
+static void WMOnButtonEvent(int32_t button, int32_t value) {
 	if ((button == GUI_BUTTON_LEFT) && (value == GUI_BUTTON_PRESSED)) {
-		if (manager->modal >= 0) {
-			const int32_t index = WMGetIndexByID(manager, manager->modal);
-			if (index >= 0 && index <= manager->count) {
-				if ((*manager->windows[index].flags) & GUI_VISIBLE) {
-					if (!RECT_CONTAINS_POINT(*manager->windows[index].bounds, manager->mousePosition)) {
-						if (manager->modalAlertProc) {
-							manager->modalAlertProc(manager->modalUserData, *manager->windows[index].bounds);
+		if (context->modal >= 0) {
+			const int32_t index = WMGetIndexByID(context->modal);
+			if (index >= 0 && index <= context->count) {
+				if ((*context->windows[index].flags) & GUI_VISIBLE) {
+					if (!RECT_CONTAINS_POINT(*context->windows[index].bounds, context->mousePosition)) {
+						if (context->modalAlertProc) {
+							context->modalAlertProc(context->modalUserData, *context->windows[index].bounds);
 						}
 						return;
 					}
 				} else {
-					manager->modal = -1;
+					context->modal = -1;
 				}
 			}
 		}
 		bool receiveEvents = true;
-		for (int32_t index = manager->count - 1; index >= 0; --index) {
-			if (((*manager->windows[index].flags) & GUI_VISIBLE) && (RECT_CONTAINS_POINT(*manager->windows[index].bounds, manager->mousePosition))) {
-				manager->windows[index].receiveEvents = receiveEvents;
+		for (int32_t index = context->count - 1; index >= 0; --index) {
+			if (((*context->windows[index].flags) & GUI_VISIBLE) && (RECT_CONTAINS_POINT(*context->windows[index].bounds, context->mousePosition))) {
+				context->windows[index].receiveEvents = receiveEvents;
 				receiveEvents = false;
 			} else {
-				manager->windows[index].receiveEvents = false;
+				context->windows[index].receiveEvents = false;
 			}
 		}
 		
-		for (int32_t index = manager->count - 1; index >= 0; --index) {
-			if (((*manager->windows[index].flags) & GUI_VISIBLE) && (RECT_CONTAINS_POINT(*manager->windows[index].bounds, manager->mousePosition))) {
-				WMBringIndexToFront(manager, index);
+		for (int32_t index = context->count - 1; index >= 0; --index) {
+			if (((*context->windows[index].flags) & GUI_VISIBLE) && (RECT_CONTAINS_POINT(*context->windows[index].bounds, context->mousePosition))) {
+				WMBringIndexToFront(index);
 				break;
 			}
 		}
@@ -464,7 +466,6 @@ static void WMOnButtonEvent(GUIContext* manager, int32_t button, int32_t value) 
 
 /************************************** IMPLEMENTATION ******************************/
 #if defined (IMGUI_IMPLEMENTATION)
-static GUIContext* context = NULL;
 
 void GUIDrawText(const char* text, const ivec4& bounds, color& color, uint32_t flags) {
 	if (context != NULL) {
@@ -1228,10 +1229,10 @@ bool TextBox(char* text, const uint32_t max_length, int& carrot, uint32_t flags,
 	bool ans = false;
 
 	if (flags & GUI_BACKGROUND) {
-		GUIDrawQuad(absoluteBounds, context->style.colors[(carrot >= 0) ? GUI_COLOR_FOCUSED : focused ? GUI_COLOR_FOCUSED : GUI_COLOR_PANE]);
+		GUIDrawQuad(absoluteBounds, context->style.colors[(carrot >= 0) ? GUI_COLOR_FOCUSED : GUI_COLOR_PANE]);
 	}
 	if (flags & GUI_OUTLINE) {
-		GUIDrawBorder(absoluteBounds, context->style.colors[(carrot >= 0) ? GUI_COLOR_ACTIVE : GUI_COLOR_BORDER]);
+		GUIDrawBorder(absoluteBounds, context->style.colors[(carrot >= 0) ? GUI_COLOR_ACTIVE : focused ? GUI_COLOR_FOCUSED : GUI_COLOR_BORDER]);
 	}
 	
 	if (flags & GUI_ENABLED) {

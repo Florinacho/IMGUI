@@ -17,13 +17,15 @@ typedef struct {
 } Font;
 
 typedef struct {
+	GUIContext context;
 	Font font;
-	uint32_t pixels;
-	uint32_t screen_width;
-	uint32_t screen_height;
-} MyContext;
+} Win32GUIContext;
 
 int LoadTTFFont(Font* font, const char* filename, float size);
+void FreeTTFFont(Font* font);
+
+int Win32GUIInit(Win32GUIContext* context, const char* fontFilename, float fontSize);
+void Win32GUIUninit(Win32GUIContext* context);
 
 void MyDrawLine(GUIContext* context, const ivec2& begin, const ivec2& end, const color& color);
 void MyDrawQuad(GUIContext* context, const ivec4& bounds, const color& color);
