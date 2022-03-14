@@ -10,17 +10,19 @@
 #define STB_TRUETYPE_IMPLEMENTATION
 #include "stb_truetype.h"
 
-Font gfont;
-Font* font = &gfont;
+Font* pfont = NULL; // TODO: Clean this junk
 
-int LoadTTFFont(Font* __font, const char* filename, float size) {
+int LoadTTFFont(Font* font, const char* filename, float size) {
 	static const uint32_t BITMAP_WIDTH = 512;
 	static const uint32_t BITMAP_HEIGHT = 512;
 	static const uint8_t  FONT_BEGIN = ' ';
 	static const uint8_t  FONT_END = '~';
 	static const uint8_t  FONT_LENGTH = FONT_END - FONT_BEGIN;
 	
-	FILE* file = fopen(filename, "rb");
+	char fullFilename[64];
+	snprintf(fullFilename, 64, "c:/windows/fonts/%s", filename);
+	
+	FILE* file = fopen(fullFilename, "rb");
 	if (file == NULL) {
 		return 1;
 	}
@@ -43,6 +45,8 @@ int LoadTTFFont(Font* __font, const char* filename, float size) {
 	font->size = size;
 	stbtt_BakeFontBitmap(ttf_raw_data, 0, size, font->bitmap, BITMAP_WIDTH, BITMAP_HEIGHT, FONT_BEGIN, FONT_LENGTH, font->glyphs);
 	delete [] ttf_raw_data;
+	
+	pfont = font;
 	
 	return 0;
 }
@@ -109,7 +113,7 @@ ivec2 MyGetTextSize(GUIContext* guiContext, const char* text, uint32_t length) {
 	float y = 16.0f; // TODO: Calculate this
 	for (uint32_t index = 0; index < length; ++index) {
 		if (text[index] >= FONT_BEGIN && text[index] < FONT_END) {
-			const stbtt_bakedchar *b = font->glyphs + text[index] - FONT_BEGIN;
+			const stbtt_bakedchar *b = pfont->glyphs + text[index] - FONT_BEGIN;
 			x = floor(x + b->xadvance + 0.5f);
 		}
 	}
@@ -122,12 +126,12 @@ void MyDrawChar(GUIContext* context, char c, float& pos_x, float& pos_y, const c
 	const int32_t FONT_BITMAP_WIDTH = 512;
 	const int32_t FONT_BITMAP_HEIGHT = 512;
 
-	if (c < font->begin && c >= font->end) {
+	if (c < pfont->begin && c >= pfont->end) {
 		return;
 	}
 
 	const uint32_t pixel = color.w   << 24 | color.x   << 16 | color.y   <<  8 | color.z   <<  0;
-	const stbtt_bakedchar *b = font->glyphs + c - 32;
+	const stbtt_bakedchar *b = pfont->glyphs + c - 32;
 	
 	uint32_t* pixels = (uint32_t*)context->opaqueData;
 	
@@ -138,7 +142,7 @@ void MyDrawChar(GUIContext* context, char c, float& pos_x, float& pos_y, const c
 			const int32_t py = pos_y + y + (b->yoff + 0.5f);
 			if (px >= 0 && px < SCREEN_WIDTH && py >= 0 && py < SCREEN_HEIGHT) {
 				const uint32_t destIndex = py * SCREEN_WIDTH + px;
-				const uint8_t luminance = font->bitmap[sourceIndex];
+				const uint8_t luminance = pfont->bitmap[sourceIndex];
 				const uint32_t mask  = luminance << 24 | luminance << 16 | luminance <<  8 | luminance <<  0;
 				pixels[destIndex] = (pixels[destIndex] & ~mask) | (pixel & mask);
 			}
