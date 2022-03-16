@@ -2,8 +2,10 @@
 #define __GUI_H__
 
 #include <stdint.h>
+#include <stdbool.h>
 #include <assert.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <time.h>
 
@@ -165,15 +167,10 @@ typedef struct Layout {
 	int32_t elementIndex;
 	uint8_t type;
 	bool run_statement;
-
-	Layout();
-	Layout(const Layout& other);
-	
-	Layout& operator = (const Layout& other);
-	
-	ivec4 getCellBounds(const ivec4& bounds, bool advance = true) const;
-	ivec4 getAbsoluteBounds(const ivec4& bounds, bool advance = true) const;
 } Layout;
+
+ivec4 LayoutGetCellBounds(const ivec4& bounds, bool advance);
+ivec4 LayoutGetAbsoluteBounds(const ivec4& bounds, bool advance);
 
 typedef struct {
 	uint32_t value;
@@ -523,7 +520,7 @@ GUIContext* GUIGetActiveContext() {
 }
 
 bool GetMouseWheelDelta(int32_t *delta, bool force) {
-	if ((context == NULL) || (context->mouse_wheel_delta == 0) || (force == false && context->events_enabled == false))  {
+	if ((context == NULL) || (context->mouse_wheel_delta == 0) || (force == false && context->events_enabled == false) || (context->modal != -1))  {
 		return false;
 	}
 	*delta = context->mouse_wheel_delta;
@@ -663,52 +660,8 @@ void GUIEndFrame() {
 	context->keyEventCount = 0;
 }
 
-Layout::Layout() {
-	type = GUI_LAYOUT_ABSOLUTE;
-	
-	parent.x = 0;
-	parent.y = 0;
-	parent.z = 0;
-	parent.w = 0;
-	
-	elementIndex = 0;
-	
-	max.x = 0xFFFFFFFF;
-	max.y = 0xFFFFFFFF;
-	
-	grid.count.x = 1;
-	grid.count.y = 1;
-	
-	grid.cellSize.x = 1;
-	grid.cellSize.y = 1;
-	
-	padding[0] = 2;
-	padding[1] = 2;
-	padding[2] = 2;
-	padding[3] = 2;
-}
-
-Layout::Layout(const Layout& other) {
-	*this = other;
-}
-
-Layout& Layout::operator = (const Layout& other) {
-	type = other.type;
-	parent = other.parent;
-	max = other.max;
-	elementIndex = other.elementIndex;
-	grid = other.grid;
-	padding[0] = other.padding[0];
-	padding[1] = other.padding[1];
-	padding[2] = other.padding[2];
-	padding[3] = other.padding[3];
-	return *this;
-}
-
-ivec4 Layout::getCellBounds(const ivec4& bounds, bool advance) const {
+ivec4 LayoutGetCellBounds(const ivec4& bounds, bool advance) {
 	ivec4 ans;
-	int32_t advance_count = 0;
-
 	switch (context->layout.type) {
 	case GUI_LAYOUT_ABSOLUTE :
 		if ((bounds.w - bounds.y + bounds.z - bounds.x) != 0) {
@@ -727,8 +680,8 @@ ivec4 Layout::getCellBounds(const ivec4& bounds, bool advance) const {
 		const int32_t index = context->layout.elementIndex % 2;
 		if (context->layout.split.vertical) {
 			const int32_t topCellWidth = (width - context->layout.split.separator) * context->layout.split.weight;
-			const int32_t botCellWidth = width - context->layout.split.separator - topCellWidth;
-			ans.x = (topCellWidth + context->layout.split.separator) * index;
+			const int32_t botCellWidth =  width - context->layout.split.separator - topCellWidth;
+			ans.x =                (topCellWidth + context->layout.split.separator) * index;
 			ans.y = 0;
 			ans.z = topCellWidth + (botCellWidth + context->layout.split.separator) * index;
 			ans.w = height;
@@ -736,11 +689,10 @@ ivec4 Layout::getCellBounds(const ivec4& bounds, bool advance) const {
 			const int32_t topCellHeight = (height - context->layout.split.separator) * context->layout.split.weight;
 			const int32_t botCellHeight = height - context->layout.split.separator - topCellHeight;
 			ans.x = 0;
-			ans.y = (topCellHeight + context->layout.split.separator) * index;
+			ans.y =                 (topCellHeight + context->layout.split.separator) * index;
 			ans.z = width;
 			ans.w = topCellHeight + (context->layout.split.separator + botCellHeight) * index;
 		}
-		advance_count = 1;
 		if (ans.w < ans.y) {
 			ans.w = ans.y;
 		}
@@ -763,18 +715,17 @@ ivec4 Layout::getCellBounds(const ivec4& bounds, bool advance) const {
 		{
 		const int32_t indexX = (context->layout.elementIndex % context->layout.grid.count.x) % context->layout.grid.count.x;
 		const int32_t indexY = (context->layout.elementIndex / context->layout.grid.count.x) % context->layout.grid.count.y;
-		ans.x = indexX               * context->layout.grid.cellSize.x,
-		ans.y = indexY               * context->layout.grid.cellSize.y,
+		ans.x = indexX       * context->layout.grid.cellSize.x,
+		ans.y = indexY       * context->layout.grid.cellSize.y,
 		ans.z = (indexX + 1) * context->layout.grid.cellSize.x,
-		ans.w = (indexY + 1)         * context->layout.grid.cellSize.y;
-		advance_count = 1;
+		ans.w = (indexY + 1) * context->layout.grid.cellSize.y;
 
 		const int32_t width  = MIN(ans.z - ans.x, context->layout.max.x);
 		const int32_t height = MIN(ans.w - ans.y, context->layout.max.y);
 		const int32_t midX = (ans.z + ans.x) / 2;
 		const int32_t midY = (ans.w + ans.y) / 2;
-		ans.x = midX - width / 2 + context->layout.padding[GUI_DIRECTION_LEFT];
-		ans.z = midX + width / 2 - context->layout.padding[GUI_DIRECTION_RIGHT];
+		ans.x = midX - width  / 2 + context->layout.padding[GUI_DIRECTION_LEFT];
+		ans.z = midX + width  / 2 - context->layout.padding[GUI_DIRECTION_RIGHT];
 		ans.y = midY - height / 2 + context->layout.padding[GUI_DIRECTION_TOP];
 		ans.w = midY + height / 2 - context->layout.padding[GUI_DIRECTION_BOTTOM];
 		}
@@ -783,15 +734,13 @@ ivec4 Layout::getCellBounds(const ivec4& bounds, bool advance) const {
 		assert(!"Invalid branch!");
 	}
 	
-	if (advance) {
-		context->layout.elementIndex += advance_count;
-	}
+	context->layout.elementIndex += advance;
 
 	return ans;
 }
 
-ivec4 Layout::getAbsoluteBounds(const ivec4& bounds, bool advance) const {
-	ivec4 ans = context->layout.getCellBounds(bounds, advance);
+ivec4 LayoutGetAbsoluteBounds(const ivec4& bounds, bool advance) {
+	ivec4 ans = LayoutGetCellBounds(bounds, advance);
 	ans.x += context->viewport.x;
 	ans.y += context->viewport.y;
 	ans.z += context->viewport.x;
@@ -800,15 +749,31 @@ ivec4 Layout::getAbsoluteBounds(const ivec4& bounds, bool advance) const {
 }
 
 Layout AbsoluteLayout() {
-	Layout ans;
+	Layout ans = {0};
 	ans.type = GUI_LAYOUT_ABSOLUTE;
+	ans.max.x = 0xFFFFFFFF;
+	ans.max.y = 0xFFFFFFFF;
+	ans.grid.cellSize.x = 1;
+	ans.grid.cellSize.y = 1;
+	ans.padding[0] = 2;
+	ans.padding[1] = 2;
+	ans.padding[2] = 2;
+	ans.padding[3] = 2;
+	
 	return ans;
 }
 
 Layout GridLayout(uint32_t x, uint32_t y) {
-	Layout ans;
+	Layout ans = {0};
 	ans.type = GUI_LAYOUT_GRID;
-	ans.elementIndex = 0;
+	ans.max.x = 0xFFFFFFFF;
+	ans.max.y = 0xFFFFFFFF;
+	ans.grid.cellSize.x = 1;
+	ans.grid.cellSize.y = 1;
+	ans.padding[0] = 2;
+	ans.padding[1] = 2;
+	ans.padding[2] = 2;
+	ans.padding[3] = 2;
 	ans.grid.count.x = x;
 	ans.grid.count.y = y;
 	return ans;
@@ -817,6 +782,14 @@ Layout GridLayout(uint32_t x, uint32_t y) {
 Layout SplitLayout(bool vertical, float weight, uint8_t separator) {
 	Layout ans;
 	ans.type = GUI_LAYOUT_SPLIT;
+	ans.max.x = 0xFFFFFFFF;
+	ans.max.y = 0xFFFFFFFF;
+	ans.grid.cellSize.x = 1;
+	ans.grid.cellSize.y = 1;
+	ans.padding[0] = 2;
+	ans.padding[1] = 2;
+	ans.padding[2] = 2;
+	ans.padding[3] = 2;
 	ans.split.vertical = vertical;
 	ans.split.separator = separator;
 	ans.split.weight = weight;
@@ -824,14 +797,7 @@ Layout SplitLayout(bool vertical, float weight, uint8_t separator) {
 }
 
 void DummyElement(uint32_t count) {
-	switch (context->layout.type) {
-	case GUI_LAYOUT_GRID :
-	case GUI_LAYOUT_SPLIT :
-		context->layout.elementIndex += 1 * count;
-		break;
-	default :
-		break;
-	}
+	context->layout.elementIndex += count;
 }
 
 void LabelInternal(uint32_t flags, const ivec4& bounds) {
@@ -839,7 +805,6 @@ void LabelInternal(uint32_t flags, const ivec4& bounds) {
 		if (flags & GUI_BACKGROUND) {
 			GUIDrawQuad(bounds, context->style.colors[GUI_COLOR_PANE]);
 		}
-
 		if (flags & GUI_OUTLINE) {
 			GUIDrawBorder(bounds, context->style.colors[GUI_COLOR_BORDER]);
 		}
@@ -847,20 +812,18 @@ void LabelInternal(uint32_t flags, const ivec4& bounds) {
 }
 
 void Label(const char* text, uint32_t flags, const ivec4& bounds) {
-	const ivec4 absoluteBounds = context->layout.getAbsoluteBounds(bounds);
+	const ivec4 absoluteBounds = LayoutGetAbsoluteBounds(bounds, true);
 
 	LabelInternal(flags, absoluteBounds);
-	
 	if ((flags & GUI_VISIBLE) && (flags & GUI_FOREGROUND)) {
 		GUIDrawText(text, absoluteBounds, context->style.colors[GUI_COLOR_TEXT], (flags & GUI_ALIGN_CENTER));
 	}
 }
 
 void Label(int32_t id, uint32_t flags, const ivec4& bounds) {
-	const ivec4 absoluteBounds = context->layout.getAbsoluteBounds(bounds);
-	
+	const ivec4 absoluteBounds = LayoutGetAbsoluteBounds(bounds, true);
+
 	LabelInternal(flags, absoluteBounds);
-	
 	if ((flags & GUI_VISIBLE) && (flags & GUI_FOREGROUND)) {
 		GUIDrawIcon(id, absoluteBounds, context->style.colors[GUI_COLOR_TEXT]);
 	}
@@ -869,80 +832,72 @@ void Label(int32_t id, uint32_t flags, const ivec4& bounds) {
 bool ButtonInternal(uint32_t flags, const ivec4& bounds) {
 	const bool focused = ((RECT_CONTAINS_POINT(bounds, GetMousePosition()) && (flags & GUI_ENABLED)) || (flags & GUI_FOCUSED));
 	const bool clicked = ((focused && GetMouseLeftButton()) || (flags & GUI_CLICKED));
-	
+
 	if (flags & GUI_VISIBLE) {
 		if (flags & GUI_BACKGROUND) {
 			GUIDrawQuad(bounds, context->style.colors[clicked ? GUI_COLOR_ACTIVE : focused ? GUI_COLOR_FOCUSED : GUI_COLOR_PANE]);
 		}
-		
 		if (flags & GUI_OUTLINE) {
 			GUIDrawBorder(bounds, context->style.colors[GUI_COLOR_BORDER]);
 		}
 	}
-	
+
 	return (focused && !GetMouseLeftButton() && GetLastMouseLeftButton());
 }
 
 bool Button(const char* text, uint32_t* flags, const ivec4& bounds) {
-	const ivec4 absoluteBounds = context->layout.getAbsoluteBounds(bounds);
+	const ivec4 absoluteBounds = LayoutGetAbsoluteBounds(bounds, true);
 	bool ans = false;
-	
+
 	if (ButtonInternal(*flags, absoluteBounds)) {
 		*flags ^= GUI_CLICKED;
 		ans = true;
 	}
-	
 	if ((*flags & GUI_VISIBLE) && (*flags & GUI_FOREGROUND)) {
 		GUIDrawText(text, absoluteBounds, context->style.colors[(*flags & GUI_ENABLED) ? GUI_COLOR_TEXT : GUI_COLOR_TEXT_DISABLED], (*flags & GUI_ALIGN_CENTER));
 	}
-	
+
 	return ans;
 }
 
 bool Button(const char* text, uint32_t flags, const ivec4& bounds) {
-	const ivec4 absoluteBounds = context->layout.getAbsoluteBounds(bounds);
+	const ivec4 absoluteBounds = LayoutGetAbsoluteBounds(bounds, true);
 	const bool ans = ButtonInternal(flags, absoluteBounds);
-	
+
 	if ((flags & GUI_VISIBLE) && (flags & GUI_FOREGROUND)) {
 		GUIDrawText(text, absoluteBounds, context->style.colors[(flags & GUI_ENABLED) ? GUI_COLOR_TEXT : GUI_COLOR_TEXT_DISABLED], (flags & GUI_ALIGN_CENTER));
 	}
-	
+
 	return ans;
 }
 
 bool Button(int32_t icon, uint32_t flags, const ivec4& bounds) {
-	const ivec4 absoluteBounds = context->layout.getAbsoluteBounds(bounds);
+	const ivec4 absoluteBounds = LayoutGetAbsoluteBounds(bounds, true);
 	const bool ans = ButtonInternal(flags, absoluteBounds);
-	
+
 	if ((flags & GUI_VISIBLE) && (flags & GUI_FOREGROUND)) {
 		GUIDrawIcon(icon, absoluteBounds, context->style.colors[(flags & GUI_ENABLED) ? GUI_COLOR_TEXT : GUI_COLOR_TEXT_DISABLED]/*, (flags & GUI_ALIGN_CENTER) */);
 	}
-	
+
 	return ans;
 }
 
 bool CheckBox(bool &checked, uint32_t flags, const ivec4& nbounds) {
-	bool ans = false;
-	
-	ivec4 rect = context->layout.getAbsoluteBounds(nbounds);
-	
+	ivec4 rect = LayoutGetAbsoluteBounds(nbounds, true);
 	const int32_t centerX = (rect.z - rect.x) / 2 - 7;
 	const int32_t centerY = (rect.w - rect.y) / 2 - 7;
-	
-	// Keep square shape
 	const int32_t width  = rect.z - rect.x;
 	const int32_t height = rect.w - rect.y;
 	int32_t min = MIN3(width, height, (int)context->style.values[GUI_VALUE_TITLEBAR_HEIGHT]);
 	rect.z = rect.x + min;
 	rect.w = rect.y + min;
-	
 	rect.x += centerX;
 	rect.z += centerX;
 	rect.y += centerY;
 	rect.w += centerY;
-	
 	const bool focused = RECT_CONTAINS_POINT(rect, GetMousePosition());
-
+	bool ans = false;
+	
 	if (flags & GUI_VISIBLE) {
 		if (flags & GUI_BACKGROUND) {
 			GUIDrawQuad(rect, context->style.colors[focused ? GUI_COLOR_FOCUSED : GUI_COLOR_PANE]);
@@ -956,23 +911,21 @@ bool CheckBox(bool &checked, uint32_t flags, const ivec4& nbounds) {
 						context->style.colors[GUI_COLOR_ACTIVE]);
 		}
 	}
-	
 	if ((flags & GUI_ENABLED) && focused && !GetMouseLeftButton() && GetLastMouseLeftButton()) {
 		checked = !checked;
 		ans = true;
 	}
-	
+
 	return ans;
 }
 
 bool Toggle(bool &enabled, uint32_t flags, const ivec4& nbounds) {
 	static const int32_t PADDING = 3;
-	bool ans = false;
-	
-	const ivec4 absoluteBounds = context->layout.getAbsoluteBounds(nbounds);
+	const ivec4 absoluteBounds = LayoutGetAbsoluteBounds(nbounds, true);
 	const int32_t width = absoluteBounds.z - absoluteBounds.x;
 	const int32_t halfWidth = width / 2;
 	const bool focused = RECT_CONTAINS_POINT(absoluteBounds, GetMousePosition());
+	bool ans = false;
 
 	if (flags & GUI_VISIBLE) {
 		if (flags & GUI_BACKGROUND) {
@@ -988,26 +941,23 @@ bool Toggle(bool &enabled, uint32_t flags, const ivec4& nbounds) {
 			GUIDrawBorder(absoluteBounds, context->style.colors[GUI_COLOR_BORDER]);
 		}
 	}
-	
 	if ((flags & GUI_ENABLED) && focused && !GetMouseLeftButton() && GetLastMouseLeftButton()) {
 		enabled = !enabled;
 		ans = true;
 	}
-	
+
 	return ans;
 }
 
 void ProgressBar(float proc, uint32_t flags, const ivec4& bounds) {
 	static const uint32_t K = 4;
-	const ivec4 absoluteBounds = context->layout.getAbsoluteBounds(bounds);
-
+	const ivec4 absoluteBounds = LayoutGetAbsoluteBounds(bounds, true);
 	const int32_t width = absoluteBounds.z - absoluteBounds.x - K * 2;
 	const int32_t height = absoluteBounds.w - absoluteBounds.y;
-	
+
 	if ((width <= 0) || (height <= 0)) {
 		return;
 	}
-	
 	if (flags & GUI_VISIBLE) {
 		ivec4 barBounds;
 		barBounds.x = absoluteBounds.x + K;
@@ -1029,14 +979,12 @@ void ProgressBar(float proc, uint32_t flags, const ivec4& bounds) {
 }
 
 bool SliderInternal(float& proc, float step, int32_t boxLength, bool vertical, uint32_t flags, const ivec4& bounds) {
-	bool ans = false;
-	
 	const int32_t width  = bounds.z - bounds.x;
 	const int32_t height = bounds.w - bounds.y;
-	
 	ivec4 boxBounds;
 	ivec2 begin;
 	ivec2 end;
+	bool ans = false;
 	
 	if (vertical) {
 		const int32_t mid = (bounds.x + bounds.z) / 2;
@@ -1053,7 +1001,7 @@ bool SliderInternal(float& proc, float step, int32_t boxLength, bool vertical, u
 	}
 	const bool focused = (flags & GUI_ENABLED) && (RECT_CONTAINS_POINT(bounds, GetMousePosition()) || RECT_CONTAINS_POINT(bounds, GetLastMousePosition()));
 	const bool clicked = (focused && GetMouseLeftButton());
-	
+
 	if (focused) {
 		int32_t mouseWheelDelta = 0;
 		if (GetMouseWheelDelta(&mouseWheelDelta, false)) {
@@ -1067,18 +1015,15 @@ bool SliderInternal(float& proc, float step, int32_t boxLength, bool vertical, u
 		if (vertical) {
 			newValue = 1.0f - (float)(GetMousePosition().y - boxLength / 2 - bounds.y) / (float)(height - boxLength);
 			newValue = CLAMP(newValue, 0.0f, 1.0f);
-			printf("newValue = %f\n", newValue);
 		} else {
 			newValue = (float)(GetMousePosition().x - boxLength / 2 - bounds.x) / (float)(width - boxLength);
 			newValue = CLAMP(newValue, 0.0f, 1.0f);
 		}
-		
 		if (newValue != proc) {
 			proc = newValue;
 			ans = true;
 		}
 	}
-	
 	if (flags & GUI_VISIBLE) {
 		if (flags & GUI_BACKGROUND) {
 			if (vertical) {
@@ -1096,28 +1041,26 @@ bool SliderInternal(float& proc, float step, int32_t boxLength, bool vertical, u
 			GUIDrawBorder(boxBounds, context->style.colors[GUI_COLOR_BORDER]);
 		}
 	}
-	
+
 	return ans;
 }
 
 bool Slider(float& proc, uint32_t flags, const ivec4& bounds) {
-	const ivec4 absoluteBounds = context->layout.getAbsoluteBounds(bounds);
+	const ivec4 absoluteBounds = LayoutGetAbsoluteBounds(bounds, true);
 	const int32_t width = absoluteBounds.z - absoluteBounds.x;
 	const int32_t height = absoluteBounds.w - absoluteBounds.y;
-	
+
 	return SliderInternal(proc, 0.1f, context->style.values[GUI_VALUE_SLIDER_WIDTH], height > width, flags, absoluteBounds);
 }
 
 bool RangeSliderInternal(float& procMin, float& procMax, float step, int32_t boxLength, bool vertical, uint32_t flags, const ivec4& bounds) {
-	bool ans = false;
-	
 	const int32_t width  = bounds.z - bounds.x;
 	const int32_t height = bounds.w - bounds.y;
-	
 	ivec4 boxBounds[2];
 	ivec2 begin;
 	ivec2 end;
-	
+	bool ans = false;
+
 	if (vertical) {
 		const int32_t mid = (bounds.x + bounds.z) / 2;
 		begin = {mid, bounds.y};
@@ -1136,7 +1079,6 @@ bool RangeSliderInternal(float& procMin, float& procMax, float step, int32_t box
 	const bool focused = (flags & GUI_ENABLED) && (RECT_CONTAINS_POINT(bounds, GetMousePosition()) || RECT_CONTAINS_POINT(bounds, GetLastMousePosition()));
 	const bool clicked = (focused && GetMouseLeftButton());
 	const bool selectedLeft = abs(GetMousePosition().x - boxBounds[0].z) < abs(GetMousePosition().x - boxBounds[1].x);
-	
 	if (focused) {
 		int32_t mouseWheelDelta = 0;
 		if (GetMouseWheelDelta(&mouseWheelDelta, false)) {
@@ -1151,7 +1093,6 @@ bool RangeSliderInternal(float& procMin, float& procMax, float step, int32_t box
 	}
 	if (clicked) {
 		float newValue;
-		
 		if (vertical) {
 		} else {
 			if (GetMousePosition().x <= boxBounds[0].z) {
@@ -1175,7 +1116,6 @@ bool RangeSliderInternal(float& procMin, float& procMax, float step, int32_t box
 			}
 		}
 	}
-	
 	if (flags & GUI_VISIBLE) {
 		if (flags & GUI_BACKGROUND) {
 			if (vertical) {
@@ -1195,29 +1135,30 @@ bool RangeSliderInternal(float& procMin, float& procMax, float step, int32_t box
 			GUIDrawBorder(boxBounds[1], context->style.colors[GUI_COLOR_BORDER]);
 		}
 	}
-	
+
 	return ans;
 }
 
 bool RangeSlider(float& procMin, float& procMax, bool vertical, uint32_t flags, const ivec4& bounds) {
-	const ivec4 absoluteBounds = context->layout.getAbsoluteBounds(bounds);
+	const ivec4 absoluteBounds = LayoutGetAbsoluteBounds(bounds, true);
+	
 	return RangeSliderInternal(procMin, procMax, 0.1f, context->style.values[GUI_VALUE_SLIDER_WIDTH], vertical, flags, absoluteBounds);
 }
 
 bool TextBox(char* text, const uint32_t max_length, int& carrot, uint32_t flags, const ivec4& bounds) {
-#warning TODO: Get rid of TextBox::FONT_GLYPH_SIZE
 	static const color CARROT_COLOR = {255, 255, 255, 255};
 	static const int32_t CARROT_WIDTH = 1;
 	static const int32_t FONT_HEIGHT = 16;
-	
-	const ivec4 absoluteBounds = context->layout.getAbsoluteBounds(bounds);
+
+	const ivec4 absoluteBounds = LayoutGetAbsoluteBounds(bounds, true);
 	const ivec4 textBounds = {absoluteBounds.x + 3, absoluteBounds.y + 2, absoluteBounds.z - 3, absoluteBounds.w - 2};
 	const int32_t width = textBounds.z - textBounds.x;
 	const int32_t height = textBounds.w - textBounds.y;
 	const bool focused = RECT_CONTAINS_POINT(textBounds, GetMousePosition(true));
 	int32_t length = strlen(text);
 	int32_t offset = 0;
-	
+	bool ans = false;
+
 	if (carrot > 0) {
 		int32_t pos_x = context->getTextSize(context, text, carrot).x;
 		while (pos_x > width) {
@@ -1225,16 +1166,12 @@ bool TextBox(char* text, const uint32_t max_length, int& carrot, uint32_t flags,
 			++offset;
 		}
 	}
-	
-	bool ans = false;
-
 	if (flags & GUI_BACKGROUND) {
 		GUIDrawQuad(absoluteBounds, context->style.colors[(carrot >= 0) ? GUI_COLOR_FOCUSED : GUI_COLOR_PANE]);
 	}
 	if (flags & GUI_OUTLINE) {
 		GUIDrawBorder(absoluteBounds, context->style.colors[(carrot >= 0) ? GUI_COLOR_ACTIVE : focused ? GUI_COLOR_FOCUSED : GUI_COLOR_BORDER]);
 	}
-	
 	if (flags & GUI_ENABLED) {
 		if (GetLastMouseLeftButton(true) && (GetMouseLeftButton(true) == false)) {
 			if (focused) {
@@ -1256,7 +1193,6 @@ bool TextBox(char* text, const uint32_t max_length, int& carrot, uint32_t flags,
 	} else {
 		carrot = -1;
 	}
-
 	if (carrot >= 0) {
 		for (uint32_t index = 0; index < context->keyEventCount; ++index) {
 			switch (context->keyEvents[index].type) {
@@ -1311,15 +1247,13 @@ bool TextBox(char* text, const uint32_t max_length, int& carrot, uint32_t flags,
 				assert(!"?!");
 			}
 		}
-		
 		context->keyEventCount = 0;
-		if ((flags & GUI_FOREGROUND) && ((time(NULL) - context->textBoxActivationTime) % 2 == 0)) { // Carrot blinking every second
-			const int32_t carrotPosition = context->getTextSize(context, text + offset, MAX(carrot - offset, 0)).x; //(carrot - offset) * FONT_GLYPH_SIZE;
+		if ((flags & GUI_FOREGROUND) && ((time(NULL) - context->textBoxActivationTime) % 2 == 0)) {
+			const int32_t carrotPosition = context->getTextSize(context, text + offset, MAX(carrot - offset, 0)).x;
 			const int32_t carrotHeight = MIN(height, FONT_HEIGHT);
 			GUIDrawQuad({textBounds.x + carrotPosition, textBounds.y, textBounds.x + carrotPosition + CARROT_WIDTH, textBounds.y + carrotHeight}, CARROT_COLOR);
 		}
 	}
-
 	if ((flags & GUI_FOREGROUND) && (height >= FONT_HEIGHT)) {
 		if (flags & GUI_HIDDEN) {
 			// TODO
@@ -1335,28 +1269,26 @@ bool SpinnerInternal(int& value, const char* text, uint32_t flags, const ivec4& 
 	static const uint32_t LABEL_FLAG_MASK = GUI_VISIBLE | GUI_BACKGROUND | GUI_FOREGROUND | GUI_OUTLINE | GUI_ALIGN_MASK;
 	static const uint32_t BUTTON_FLAG_MASK = GUI_VISIBLE | GUI_ENABLED;
 	static const uint32_t BUTTON_FLAGS = GUI_BACKGROUND | GUI_FOREGROUND | GUI_OUTLINE | GUI_ALIGN_CENTER;
-	
 	static const uint32_t INT_MAX_CHARACTER_COUNT = 16;
-	bool ans = false;
-	
-	Panel(AbsoluteLayout()){
-		const ivec4 bounds = context->layout.getCellBounds(nbounds);
-		const int32_t buttonWidth = MIN(bounds.z - bounds.x, (int)context->style.values[GUI_VALUE_TITLEBAR_HEIGHT]);
 
+	bool ans = false;
+
+	Panel(AbsoluteLayout()){
+		const ivec4 bounds = LayoutGetCellBounds(nbounds, true);
+		const int32_t buttonWidth = MIN(bounds.z - bounds.x, (int)context->style.values[GUI_VALUE_TITLEBAR_HEIGHT]);
 		uint32_t button_flags = BUTTON_FLAGS | (flags & BUTTON_FLAG_MASK);
+		
 		Label(text, flags & LABEL_FLAG_MASK, {bounds.x + buttonWidth + 1, bounds.y, bounds.z - buttonWidth - 1, bounds.w});
-				
 		if (Button(GUI_ICON_ARROW_LEFT, button_flags, {bounds.x, bounds.y, bounds.x + buttonWidth, bounds.w})) {
 			value--;
 			ans = true;
 		}
-		
 		if (Button(GUI_ICON_ARROW_RIGHT, button_flags, {bounds.z - buttonWidth, bounds.y, bounds.z, bounds.w})) {
 			value++;
 			ans = true;
 		}
 	}
-	
+
 	return ans;
 }
 
@@ -1365,7 +1297,7 @@ bool Spinner(int& value, uint32_t flags, const ivec4& bounds) {
 	static const uint32_t INT_MAX_CHARACTER_COUNT = 16;
 	char tmp[INT_MAX_CHARACTER_COUNT];
 	snprintf(tmp, INT_MAX_CHARACTER_COUNT, "%d", value);
-	
+
 	return SpinnerInternal(value, tmp, flags, bounds);
 }
 
@@ -1379,48 +1311,34 @@ bool Spinner(int& value, const char** labels, uint32_t count, uint32_t flags, co
 
 bool ListBox(int& selectedIndex, int& offset, const char** items, uint32_t count, uint32_t flags, const ivec4& bounds) {
 	bool ans = false;
-	int32_t glyphHeight = 7;
-	
+
 	Panel(AbsoluteLayout()) {
-		const ivec4 absoluteBounds = context->layout.getAbsoluteBounds(bounds);
+		const ivec4 absoluteBounds = LayoutGetAbsoluteBounds(bounds, true);
 		const int32_t width = absoluteBounds.z - absoluteBounds.x;
 		const int32_t height = absoluteBounds.w - absoluteBounds.y;
 		const int32_t itemHeight = context->getTextSize(context, "A", 1).y;// 7 * context->style.values[GUI_VALUE_TEXT_SCALE];
 		const int32_t visibleItemCount = height / itemHeight;
-		const int32_t minCount = MIN((uint32_t)visibleItemCount, count);
+		const int32_t minCount = MIN(visibleItemCount, (int32_t)count);
 		const int32_t diff = count - visibleItemCount;
-		offset = MAX(MIN(diff, offset), 0);
+		const ivec4 listBounds = {absoluteBounds.x, absoluteBounds.y, absoluteBounds.z - context->style.values[GUI_VALUE_SCROLLBAR_WIDTH] * (diff > 0), absoluteBounds.w};
+		const bool focused = RECT_CONTAINS_POINT(listBounds, GetMousePosition());
 		int32_t focusedIndex = -1;
-
+		
+		offset = MAX(MIN(diff, offset), 0);
 		GUIDrawQuad(absoluteBounds, context->style.colors[GUI_COLOR_PANE]);
 		GUIDrawBorder(absoluteBounds, context->style.colors[GUI_COLOR_BORDER]);
-
-		const ivec4 listBounds = {
-			absoluteBounds.x, 
-			absoluteBounds.y, 
-			absoluteBounds.z - context->style.values[GUI_VALUE_SCROLLBAR_WIDTH] * (diff > 0), 
-			absoluteBounds.w
-			};
-		
-		bool focused = RECT_CONTAINS_POINT(listBounds, GetMousePosition());
 		if (focused) {
 			focusedIndex = CLAMP((GetMousePosition().y - absoluteBounds.y) / itemHeight + offset, offset, (int)count - 1);
 			if (GetMouseLeftButton() == false && GetLastMouseLeftButton() == true) {
 				selectedIndex = focusedIndex;
 				ans = true;
 			}
-			
 			int32_t mouseWheelDelta = 0;
 			if (GetMouseWheelDelta(&mouseWheelDelta, false)) {
-				printf("mouseWheelDelta = %d\n", mouseWheelDelta);
-				printf("old offset: %d\n", offset);
-				printf("delta: %d\n", mouseWheelDelta);
 				offset += mouseWheelDelta;
 				offset = CLAMP(offset, 0, diff);
-				printf("new offset: %d\n", offset);
 			}
 		}
-
 		for (uint32_t index = offset; index < MIN(offset + minCount, (int)count); ++index) {
 			int32_t vOffset = (index - offset) * itemHeight;
 			if (vOffset < 0) continue;
@@ -1432,29 +1350,26 @@ bool ListBox(int& selectedIndex, int& offset, const char** items, uint32_t count
 			}
 			GUIDrawText(items[index], itemBounds, context->style.colors[GUI_COLOR_TEXT], flags & GUI_ALIGN_MASK);
 		}
-		
 		if ((diff > 0) && (width >= context->style.values[GUI_VALUE_SCROLLBAR_WIDTH])) {
 			ScrollBar(offset, diff, true, (float)visibleItemCount / (float)count, {width - context->style.values[GUI_VALUE_SCROLLBAR_WIDTH] - 1, 0, width - 1, height});
 		}
 	}
-	
+
 	return ans;
 }
 
 bool ScrollBar(int& offset, const int32_t max, bool vertical, float proc, const ivec4& relativeBounds) {
 	bool ans = false;
-	
+
 	Panel(AbsoluteLayout()) {
-		const ivec4 bounds = context->layout.getCellBounds(relativeBounds);
+		const ivec4 bounds = LayoutGetCellBounds(relativeBounds, true);
 		const ivec4 absoluteBounds = {bounds.x + context->viewport.x, bounds.y + context->viewport.y, bounds.z + context->viewport.x, bounds.w + context->viewport.y};
 		const int32_t width = absoluteBounds.z - absoluteBounds.x;
 		const int32_t height = absoluteBounds.w - absoluteBounds.y;
-
 		const int32_t buttonWidth  = MIN(bounds.z - bounds.x, (int)context->style.values[GUI_VALUE_SCROLLBAR_WIDTH]);
 		const int32_t buttonHeight = MIN(bounds.w - bounds.y, (int)context->style.values[GUI_VALUE_SCROLLBAR_WIDTH]);
-
 		ivec4 buttonBounds[2];
-		
+
 		if (vertical) {
 			buttonBounds[0] = {bounds.x, bounds.y, bounds.z, bounds.y + buttonHeight};
 			buttonBounds[1] = {bounds.x, bounds.w - buttonHeight, bounds.z, bounds.w - 1};
@@ -1462,13 +1377,10 @@ bool ScrollBar(int& offset, const int32_t max, bool vertical, float proc, const 
 			buttonBounds[0] = {bounds.x, bounds.y, bounds.x + buttonWidth, bounds.w};
 			buttonBounds[1] = {bounds.z - buttonWidth, bounds.y, bounds.z, bounds.w};
 		}
-
-		// Draw buttons
 		if (Button(vertical ? GUI_ICON_ARROW_UP : GUI_ICON_ARROW_LEFT, GUI_DEFAULT_FLAGS_BUTTON, buttonBounds[0])) {
 			offset = MAX(offset - 1, 0);
 			ans = true;
 		}
-		
 		{
 		const ivec4 barBounds = {absoluteBounds.x, absoluteBounds.y + buttonWidth, absoluteBounds.z, absoluteBounds.w - buttonWidth};
 		const int32_t barHeight = barBounds.w - barBounds.y;
@@ -1479,22 +1391,20 @@ bool ScrollBar(int& offset, const int32_t max, bool vertical, float proc, const 
 			offset = (1.0f - proc) * (float)(max + 0);
 		}
 		}
-		
 		if (Button(vertical ? GUI_ICON_ARROW_DOWN : GUI_ICON_ARROW_RIGHT, GUI_DEFAULT_FLAGS_BUTTON, buttonBounds[1])) {
 			offset = MIN(offset + 1, max);
 			ans = true;
 		}
 	}
-	
+
 	return ans;
 }
 
 Layout BeginPanel(const Layout& layout) {
 	context->layout.parent = context->viewport;
-	context->viewport = context->layout.getAbsoluteBounds({0, 0, 0, 0});
+	context->viewport = LayoutGetAbsoluteBounds({0, 0, 0, 0}, true);
 	Layout ans = context->layout;
 	ans.run_statement = true;
-
 	SetLayout(layout);
 
 	return ans;
@@ -1508,19 +1418,17 @@ void EndPanel(Layout* bkp_layout) {
 
 Layout BeginGroup(const char* text, const ivec4& bounds) {
 	const Layout ans = BeginPanel();
-	
 	const int32_t l = context->style.values[GUI_VALUE_TEXT_SCALE] * 7 / 2;
-	const ivec4 absoluteBounds = context->layout.getAbsoluteBounds(bounds);
+	const ivec4 absoluteBounds = LayoutGetAbsoluteBounds(bounds, true);
 	const ivec4 absoluteBounds2 = {absoluteBounds.x, absoluteBounds.y + l, absoluteBounds.z, absoluteBounds.w};
+	const int32_t width = absoluteBounds.z - absoluteBounds.x;
+	const int32_t height = absoluteBounds.w - absoluteBounds.y;
 	
 	GUIDrawBorder(absoluteBounds2, context->style.colors[GUI_COLOR_BORDER]);
 	context->viewport.x = absoluteBounds2.x + l;
 	context->viewport.y = absoluteBounds2.y + l * 2;
 	context->viewport.z = absoluteBounds2.z - l;
 	context->viewport.w = absoluteBounds2.w - l;
-	
-	const int32_t width = absoluteBounds.z - absoluteBounds.x;
-	const int32_t height = absoluteBounds.w - absoluteBounds.y;
 	if (height >= context->style.values[GUI_VALUE_TEXT_SCALE] * 7) {
 		const ivec2 textSize = context->getTextSize(context, text, strlen(text));
 		int32_t offset = (absoluteBounds.z - absoluteBounds.x - textSize.x) * ((float)context->style.values[GUI_VALUE_GROUP_OFFSET] / 255.0f);
@@ -1528,19 +1436,19 @@ Layout BeginGroup(const char* text, const ivec4& bounds) {
 		GUIDrawQuad(textBounds, context->style.colors[GUI_COLOR_PANEL]);
 		GUIDrawText(text, textBounds, context->style.colors[GUI_COLOR_TEXT], GUI_ALIGN_CENTER);
 	}
+	
 	return ans;
 }
 
 Layout BeginSplitPanel(bool vertical, float& weight, const ivec4& bounds) {
 	static const int32_t SEPARATOR = 4;
 	const Layout ans = BeginPanel(SplitLayout(vertical, weight, SEPARATOR));
-	
 	const ivec4 absoluteBounds = context->viewport; // DAFUQ ?!
 	const int32_t width  = absoluteBounds.z - absoluteBounds.x;
 	const int32_t height = absoluteBounds.w - absoluteBounds.y;
 	const int32_t halfPadding = SEPARATOR / 2;
 	ivec4 separatorBounds;
-	
+
 	if (vertical) {
 		const int32_t k = (float)(width - SEPARATOR) * weight;
 		separatorBounds = {absoluteBounds.x + k, absoluteBounds.y, absoluteBounds.x + k + SEPARATOR, absoluteBounds.w};
@@ -1548,10 +1456,10 @@ Layout BeginSplitPanel(bool vertical, float& weight, const ivec4& bounds) {
 		const int32_t k = (float)(height - SEPARATOR) * weight;
 		separatorBounds = {absoluteBounds.x, absoluteBounds.y + k, absoluteBounds.z, absoluteBounds.y + k + SEPARATOR};
 	}
-	
+
 	const bool focused = (RECT_CONTAINS_POINT(separatorBounds, GetMousePosition()) || RECT_CONTAINS_POINT(separatorBounds, GetLastMousePosition()));
 	const bool clicked = focused && GetMouseLeftButton();
-	
+
 	if (clicked) {
 		if (vertical) {
 			weight = (float)(GetMousePosition().x - halfPadding - absoluteBounds.x) / (float)(width - SEPARATOR);
@@ -1560,7 +1468,6 @@ Layout BeginSplitPanel(bool vertical, float& weight, const ivec4& bounds) {
 		}
 		weight = CLAMP(weight, 0.01f, 0.99f);
 	}
-
 	GUIDrawQuad(separatorBounds, context->style.colors[clicked ? GUI_COLOR_ACTIVE : focused ? GUI_COLOR_FOCUSED : GUI_COLOR_PANE]);
 
 	return ans;
@@ -1568,52 +1475,47 @@ Layout BeginSplitPanel(bool vertical, float& weight, const ivec4& bounds) {
 
 Layout BeginTabPanel(const char** names, uint32_t count, int& selected, const ivec4& bounds) {
 	const Layout ans = BeginPanel(AbsoluteLayout());
-	
-	const ivec4 absoluteRectangle = context->layout.getAbsoluteBounds(bounds);
+	const ivec4 absoluteRectangle = LayoutGetAbsoluteBounds(bounds, true);
 	const int32_t tabWidth = (absoluteRectangle.z - absoluteRectangle.x) / count;
 	const int32_t tabHeight = MIN(absoluteRectangle.w - absoluteRectangle.y, (int)context->style.values[GUI_VALUE_TITLEBAR_HEIGHT]);
-	
+
 	for (int32_t index = 0; index < count; ++index) {
-		if (Button(names[index], 
-					GUI_DEFAULT_FLAGS_BUTTON | ((index == selected) ? GUI_CLICKED | GUI_FOCUSED : GUI_NONE), 
-					{index * tabWidth, 0, (index + 1) * tabWidth - 1, tabHeight})) {
+		if (Button(names[index], GUI_DEFAULT_FLAGS_BUTTON | ((index == selected) ? GUI_CLICKED | GUI_FOCUSED : GUI_NONE), {index * tabWidth, 0, (index + 1) * tabWidth - 1, tabHeight})) {
 			selected = index;
 		}
 	}
-	
+
 	context->viewport.x = absoluteRectangle.x;
 	context->viewport.y = absoluteRectangle.y + tabHeight + 1;
 	context->viewport.z = absoluteRectangle.z;
 	context->viewport.w = absoluteRectangle.w;
-	
+
 	GUIDrawBorder(context->viewport, context->style.colors[GUI_COLOR_BORDER]);
-	
+
 	return ans;
 }
 
 Layout BeginWindow(ivec4* rbounds, const char* text, uint32_t* flags) {
-	static const int32_t SEPARATOR = 8;
-	
+	static const int32_t SEPARATOR = 2; // TODO: replace with Layout::padding
+	static const int32_t CloseButtonSize = context->style.values[GUI_VALUE_TITLEBAR_HEIGHT];
 	Layout ans = BeginPanel();
-	
-	ivec4 bounds = context->layout.getAbsoluteBounds(*rbounds);
-
+	ivec4 bounds = LayoutGetAbsoluteBounds(*rbounds, true);
+	const int32_t width  = MAX(bounds.z - bounds.x, CloseButtonSize + SEPARATOR * 2);
+	const int32_t height = MAX(bounds.w - bounds.y, CloseButtonSize + SEPARATOR * 2);
+	const ivec4 titlebarRectangle = {bounds.x, bounds.y, bounds.z - CloseButtonSize, bounds.y + context->style.values[GUI_VALUE_TITLEBAR_HEIGHT]};
 	uint32_t defaultFlags = GUI_DEFAULT_FLAGS_WINDOW  & ~GUI_WINDOW_CLOSE;
+
 	if (flags == NULL) {
 		flags = & defaultFlags;
 	}
-	
 	if ((*flags & GUI_VISIBLE) == 0) {
 		ans.run_statement = false;
 		EndPanel(&ans);
 		return ans;
 	}
-	
+
 	const int32_t padding = ((*flags & GUI_WINDOW_SIZE ) ? SEPARATOR : 0);
 	const int32_t content_offset_y = ((*flags & GUI_WINDOW_TITLEBAR ) ? context->style.values[GUI_VALUE_TITLEBAR_HEIGHT] : 0);
-
-	const int32_t width  = MAX(bounds.z - bounds.x, SEPARATOR * 2);
-	const int32_t height = MAX(bounds.w - bounds.y, SEPARATOR * 2);
 
 	if (bounds.z < bounds.x + padding * 2) {
 		bounds.z = bounds.x + padding * 2;
@@ -1621,9 +1523,6 @@ Layout BeginWindow(ivec4* rbounds, const char* text, uint32_t* flags) {
 	if (bounds.w < bounds.y + padding * 2 + content_offset_y) {
 		bounds.w = bounds.y + padding * 2 + content_offset_y;
 	}
-
-	static const int32_t CloseButtonSize = context->style.values[GUI_VALUE_TITLEBAR_HEIGHT];
-	const ivec4 titlebarRectangle = {bounds.x, bounds.y, bounds.z - CloseButtonSize, bounds.y + context->style.values[GUI_VALUE_TITLEBAR_HEIGHT]};
 	if ((*flags & GUI_WINDOW_TITLEBAR) && (*flags & GUI_WINDOW_MOVE)) {
 		if (((    GetMouseLeftButton() == true && RECT_CONTAINS_POINT(titlebarRectangle,     GetMousePosition())) ||
 			 (GetLastMouseLeftButton() == true && RECT_CONTAINS_POINT(titlebarRectangle, GetLastMousePosition())))) {
@@ -1636,7 +1535,6 @@ Layout BeginWindow(ivec4* rbounds, const char* text, uint32_t* flags) {
 			bounds.w += offset.y;
 		}	
 	}
-	
 	// Draw titlebar
 	context->viewport = bounds;
 	int32_t offsetY = 0;
@@ -1658,12 +1556,12 @@ Layout BeginWindow(ivec4* rbounds, const char* text, uint32_t* flags) {
 	context->viewport.y = bounds.y + context->style.values[GUI_VALUE_WINDOW_PADDING] + content_offset_y;
 	context->viewport.z = bounds.z - context->style.values[GUI_VALUE_WINDOW_PADDING];
 	context->viewport.w = bounds.w - context->style.values[GUI_VALUE_WINDOW_PADDING] - padding;
-	SetLayout(AbsoluteLayout());
-	
+	SetLayout(GridLayout(1, 1));
+
 	// Draw window body
 	GUIDrawQuad({bounds.x, bounds.y + offsetY, bounds.z, bounds.w}, context->style.colors[GUI_COLOR_PANEL]);
 	GUIDrawBorder(bounds, context->style.colors[GUI_COLOR_BORDER]);
-	
+
 	if (*flags & GUI_WINDOW_SIZE) {
 		const bool isInside  = (GetMousePosition().x >= bounds.z - 15) && (GetMousePosition().x <= bounds.z) && (GetMousePosition().y >= bounds.w - 15) && (GetMousePosition().y <= bounds.w);
 		const bool wasInside = (GetLastMousePosition().x >= bounds.z - 15) && (GetLastMousePosition().x <= bounds.z) && (GetLastMousePosition().y >= bounds.w - 15) && (GetLastMousePosition().y <= bounds.w);
@@ -1671,7 +1569,6 @@ Layout BeginWindow(ivec4* rbounds, const char* text, uint32_t* flags) {
 		const bool clicked = (focused && GetMouseLeftButton());
 
 		GUIDrawIcon(GUI_ICON_SIZE, {bounds.z - 15, bounds.w - 15, bounds.z, bounds.w}, context->style.colors[clicked ? GUI_COLOR_ACTIVE : focused ? GUI_COLOR_FOCUSED : GUI_COLOR_PANE]);
-
 		if (clicked) {
 			if (GetLastMouseLeftButton()) {
 				const ivec2 mousePosition = GetMousePosition();
@@ -1685,6 +1582,7 @@ Layout BeginWindow(ivec4* rbounds, const char* text, uint32_t* flags) {
 	if (rbounds) {
 		*rbounds = bounds;
 	}
+	
 	return ans;
 }
 

@@ -1,24 +1,22 @@
 #ifndef __BINDING_H__
 #define __BINDING_H__
 
-#include <algorithm>
-
 #define IMGUI_INCLUDE_WINDOW_MANAGER
 #include "GUI.h"
 
 #include "stb_truetype.h"
 
 typedef struct {
-	uint8_t* bitmap;
-	stbtt_bakedchar* glyphs;
-	uint8_t begin;
-	uint8_t end;
-	float size;
+	uint8_t* bitmap;         // Bitmap data as a grayscale image
+	stbtt_bakedchar* glyphs; // Character metadata
+	uint8_t begin;           // Begin character included in the bitmap
+	uint8_t end;             // End character included in the bitmap
+	float size;              // Character height
 } Font;
 
 typedef struct {
-	GUIContext context;
-	Font font;
+	GUIContext context;      // imGUI lib context
+	Font font;               // Font 
 } Win32GUIContext;
 
 int LoadTTFFont(Font* font, const char* filename, float size);
