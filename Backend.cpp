@@ -11,6 +11,9 @@
 #define STB_TRUETYPE_IMPLEMENTATION
 #include "stb_truetype.h"
 
+#define SCREEN_WIDTH  1024
+#define SCREEN_HEIGHT 720
+
 Font* pfont = NULL; // TODO: Clean this junk
 
 int LoadTTFFont(Font* font, const char* filename, float size) {
@@ -95,14 +98,14 @@ void MyDrawQuad(GUIContext* context, const ivec4& bounds, const color& color) {
 	
 	const int32_t begin_x = std::max<int32_t>(bounds.x, 0);
 	const int32_t begin_y = std::max<int32_t>(bounds.y, 0);
-	const int32_t end_x   = std::max(std::min<int32_t>(bounds.z, 1024), 0);
-	const int32_t end_y   = std::max(std::min<int32_t>(bounds.w,  720), 0);
+	const int32_t end_x   = std::max(std::min<int32_t>(bounds.z, SCREEN_WIDTH), 0);
+	const int32_t end_y   = std::max(std::min<int32_t>(bounds.w,  SCREEN_HEIGHT), 0);
 
 	uint32_t* pixels = (uint32_t*)context->opaqueData;
 	
 	for (uint32_t y = begin_y; y < end_y; ++y) {
 		for (uint32_t x = begin_x; x < end_x; ++x) {
-			pixels[y * 1024 + x] = pixel;
+			pixels[y * SCREEN_WIDTH + x] = pixel;
 		}
 	}
 }
@@ -122,8 +125,6 @@ ivec2 MyGetTextSize(GUIContext* guiContext, const char* text, uint32_t length) {
 }
 
 void MyDrawChar(GUIContext* context, char c, float& pos_x, float& pos_y, const color& color) {
-	const int32_t SCREEN_WIDTH = 1024;
-	const int32_t SCREEN_HEIGHT = 720;
 	const int32_t FONT_BITMAP_WIDTH = 512;
 	const int32_t FONT_BITMAP_HEIGHT = 512;
 
@@ -305,6 +306,75 @@ void MyDrawIcon(GUIContext* context, int32_t id, const ivec4& bounds, const colo
 			0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
 			0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
 			0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+			
+			// GUI_ICON_PLAY
+			0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+			0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+			0,0,0,0,1,1,0,0,0,0,0,0,0,0,0,
+			0,0,0,0,1,1,1,0,0,0,0,0,0,0,0,
+			0,0,0,0,1,1,1,1,0,0,0,0,0,0,0,
+			0,0,0,0,1,1,1,1,1,0,0,0,0,0,0,
+			0,0,0,0,1,1,1,1,1,1,0,0,0,0,0,
+			0,0,0,0,1,1,1,1,1,1,1,0,0,0,0,
+			0,0,0,0,1,1,1,1,1,1,0,0,0,0,0,
+			0,0,0,0,1,1,1,1,1,0,0,0,0,0,0,
+			0,0,0,0,1,1,1,1,0,0,0,0,0,0,0,
+			0,0,0,0,1,1,1,0,0,0,0,0,0,0,0,
+			0,0,0,0,1,1,0,0,0,0,0,0,0,0,0,
+			0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+			0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+			
+			// GUI_ICON_PAUSE
+			0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+			0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+			0,0,0,0,1,1,0,0,0,1,1,0,0,0,0,
+			0,0,0,0,1,1,0,0,0,1,1,0,0,0,0,
+			0,0,0,0,1,1,0,0,0,1,1,0,0,0,0,
+			0,0,0,0,1,1,0,0,0,1,1,0,0,0,0,
+			0,0,0,0,1,1,0,0,0,1,1,0,0,0,0,
+			0,0,0,0,1,1,0,0,0,1,1,0,0,0,0,
+			0,0,0,0,1,1,0,0,0,1,1,0,0,0,0,
+			0,0,0,0,1,1,0,0,0,1,1,0,0,0,0,
+			0,0,0,0,1,1,0,0,0,1,1,0,0,0,0,
+			0,0,0,0,1,1,0,0,0,1,1,0,0,0,0,
+			0,0,0,0,1,1,0,0,0,1,1,0,0,0,0,
+			0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+			0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+			
+			// GUI_ICON_STOP
+			0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+			0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+			0,0,1,1,1,1,1,1,1,1,1,1,1,0,0,
+			0,0,1,1,1,1,1,1,1,1,1,1,1,0,0,
+			0,0,1,1,1,1,1,1,1,1,1,1,1,0,0,
+			0,0,1,1,1,1,1,1,1,1,1,1,1,0,0,
+			0,0,1,1,1,1,1,1,1,1,1,1,1,0,0,
+			0,0,1,1,1,1,1,1,1,1,1,1,1,0,0,
+			0,0,1,1,1,1,1,1,1,1,1,1,1,0,0,
+			0,0,1,1,1,1,1,1,1,1,1,1,1,0,0,
+			0,0,1,1,1,1,1,1,1,1,1,1,1,0,0,
+			0,0,1,1,1,1,1,1,1,1,1,1,1,0,0,
+			0,0,1,1,1,1,1,1,1,1,1,1,1,0,0,
+			0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+			0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+			
+			// GUI_ICON_LOOP
+
+			0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+			0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+			0,0,0,0,0,0,1,1,1,0,0,0,0,0,0,
+			0,0,0,0,1,1,0,0,0,1,1,0,0,0,0,
+			0,0,0,1,0,0,0,0,0,0,0,0,0,0,0,
+			0,0,0,1,0,0,0,0,0,0,0,0,0,0,0,
+			0,1,1,1,1,1,0,0,0,0,0,1,0,0,0,
+			0,0,1,1,1,0,0,0,0,0,1,1,1,0,0,
+			0,0,0,1,0,0,0,0,0,1,1,1,1,1,0,
+			0,0,0,0,0,0,0,0,0,0,0,1,0,0,0,
+			0,0,0,0,0,0,0,0,0,0,0,1,0,0,0,
+			0,0,0,0,1,1,0,0,0,1,1,0,0,0,0,
+			0,0,0,0,0,0,1,1,1,0,0,0,0,0,0,
+			0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+			0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
 	};
 	const uint32_t pixel = color.x << 16 | color.y << 8 | color.z << 0;
 	const int32_t l = std::min(bounds.z - bounds.x, bounds.w - bounds.y);
@@ -316,7 +386,7 @@ void MyDrawIcon(GUIContext* context, int32_t id, const ivec4& bounds, const colo
 		return;
 	}
 	
-	if (id < 0 || id > 6) {
+	if (id < 0 || id > 10) {
 		return;
 	}
 	
@@ -325,8 +395,8 @@ void MyDrawIcon(GUIContext* context, int32_t id, const ivec4& bounds, const colo
 			const uint8_t value = ICONS[id * ICON_SIZE + y * ICON_LENGTH + x];
 			const int32_t py = bounds.y + boundsMiddle.y + y - ICON_HALF_LENGTH;
 			const int32_t px = bounds.x + boundsMiddle.x + x - ICON_HALF_LENGTH;
-			const uint32_t dstIndex = py * 1024 + px;
-			if (py >= 0 && py < 720 && px >= 0 && px < 1024) {
+			const uint32_t dstIndex = py * SCREEN_WIDTH + px;
+			if (py >= 0 && py < SCREEN_HEIGHT && px >= 0 && px < SCREEN_WIDTH) {
 				pixels[dstIndex] = pixels[dstIndex] * !value + pixel * value;
 			}
 		}

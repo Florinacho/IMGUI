@@ -48,7 +48,7 @@
 #define GUI_ICON_ARROW_UP     4
 #define GUI_ICON_SIZE         5
 #define GUI_ICON_CHECK        6
-#define GUI_ICON_CUSTOM      10
+#define GUI_ICON_CUSTOM       (GUI_ICON_CHECK + 1)
 
 #define GUI_MAX_KEY_EVENT_COUNT 8
 
@@ -288,6 +288,8 @@ bool Button(const char*, uint32_t = GUI_DEFAULT_FLAGS_BUTTON, const ivec4& = {})
 bool Button(const char*, uint32_t*, const ivec4& = {});
 
 bool Button(int32_t, uint32_t = GUI_DEFAULT_FLAGS_BUTTON, const ivec4& = {});
+
+bool Button(int32_t, uint32_t*, const ivec4& = {});
 
 bool CheckBox(bool&, uint32_t = GUI_DEFAULT_FLAGS_CHECKBOX, const ivec4& = {});
 
@@ -882,6 +884,21 @@ bool Button(int32_t icon, uint32_t flags, const ivec4& bounds) {
 	return ans;
 }
 
+bool Button(int32_t icon, uint32_t* flags, const ivec4& bounds) {
+	const ivec4 absoluteBounds = LayoutGetAbsoluteBounds(bounds, true);
+	bool ans = false;
+
+	if (ButtonInternal(*flags, absoluteBounds)) {
+		*flags ^= GUI_CLICKED;
+		ans = true;
+	}
+	if ((*flags & GUI_VISIBLE) && (*flags & GUI_FOREGROUND)) {
+		GUIDrawIcon(icon, absoluteBounds, context->style.colors[(*flags & GUI_ENABLED) ? GUI_COLOR_TEXT : GUI_COLOR_TEXT_DISABLED]/*, (flags & GUI_ALIGN_CENTER) */);
+	}
+
+	return ans;
+}
+
 bool CheckBox(bool &checked, uint32_t flags, const ivec4& nbounds) {
 	ivec4 rect = LayoutGetAbsoluteBounds(nbounds, true);
 	const int32_t centerX = (rect.z - rect.x) / 2 - 7;
@@ -1007,6 +1024,7 @@ bool SliderInternal(float& proc, float step, int32_t boxLength, bool vertical, u
 		if (GetMouseWheelDelta(&mouseWheelDelta, false)) {
 			proc -= step * (float)mouseWheelDelta;
 			proc = CLAMP(proc, 0.0f, 1.0f);
+			ans = true;
 		}
 	}
 	if (clicked) {
