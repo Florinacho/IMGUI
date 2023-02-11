@@ -1,30 +1,51 @@
-# GUI   
-Cross-platform immediate mode GUI library for C++.  
-GUI widgets supported:  
-* Label  
-* Button  
-* CheckBox  
-* Toggle  
-* Spinner  
-* ProgressBar  
-* Slider  
-* RangeSlider  
-* TextBox  
-* ListBox  
-* ScrollBar  
-* Panel  
-* Window  
-* SplitPanel  
-* TabPanel  
-* Group  
+# Cross-platform immediate mode GUI library for C++
 
-Currently implemented backends: Win32.  
-The following function callbacks must be implemented for other backends:  
-* GUIContext::drawLine
-* GUIContext::drawQuad  
-* GUIContext::drawText  
-* GUIContext::drawIcon  
-* GUIContext::getTextSize  
+## Example:
+```
+Panel(SplitLayout(GUI_HORIZONTAL)) {
+    static char text[64];
+    static int carrot = -1;
 
-Win32 backend dependencies:  
- * STB TTF lib https://github.com/nothings/stb  
+    TextBox(text, sizeof(text), carrot);
+
+    if (Button("print")) {
+        printf("Text: %s\n", text);
+    }
+}
+```
+
+## Widgets supported:
+- Label
+- Button
+- CheckBox
+- Toggle
+- Spinner
+- ProgressBar
+- Slider
+- RangeSlider
+- TextBox
+- ScrollBar
+- Panel
+
+## Containers:
+- Window
+- SplitPanel
+- TabPanel
+- ScrollPanel
+
+## Layouts supported:
+- Absolute
+- Split
+- Border
+- Grid
+
+## Backends:
+The lib uses software rendering for drawing but this can be easily replaced by implementing the following callbacks:
+- GUIContext::drawLine
+- GUIContext::drawQuad
+- GUIContext::drawText
+- GUIContext::drawIcon
+- GUIContext::getTextSize
+
+## Dependencies:
+- Software rendering: [WindowCanvas](https://github.com/Florinacho/WindowCanvas), [STB TrueType](https://github.com/nothings/stb)
