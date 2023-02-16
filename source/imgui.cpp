@@ -1,4 +1,5 @@
-#include "GUI.h"
+#include "imgui.h"
+
 #include <algorithm>
 #include <assert.h>
 #include <stdio.h>
@@ -69,9 +70,11 @@ void WMBringIDToFront(int32_t id) {
 
 void WMOnCursorEvent(int32_t x, int32_t y) {
 	bool receiveEvents = true;
+	if (!context->mouseButtonLeft || !context->lastMouseButtonLeft) 
 	for (int32_t index = context->count - 1; index >= 0; --index) {
 		if (((*context->windows[index].flags) & GUI_VISIBLE) && 
-			(RECT_CONTAINS_POINT(*context->windows[index].bounds, context->mousePosition))) {
+			(RECT_CONTAINS_POINT(*context->windows[index].bounds, context->mousePosition))&&
+			(RECT_CONTAINS_POINT(*context->windows[index].bounds, context->lastMousePosition))) {
 			context->windows[index].receiveEvents = receiveEvents;
 			receiveEvents = false;
 		} else {
@@ -88,9 +91,7 @@ void WMOnButtonEvent(int32_t button, int32_t value) {
 			if (index >= 0 && index <= (int32_t)context->count) {
 				if ((*context->windows[index].flags) & GUI_VISIBLE) {
 					if (!RECT_CONTAINS_POINT(*context->windows[index].bounds, context->mousePosition)) {
-						if (context->modalAlertProc) {
-							context->modalAlertProc(context->modalUserData, *context->windows[index].bounds);
-						}
+						printf("\a");
 						return;
 					}
 				} else {
@@ -100,7 +101,8 @@ void WMOnButtonEvent(int32_t button, int32_t value) {
 		}
 		bool receiveEvents = true;
 		for (int32_t index = context->count - 1; index >= 0; --index) {
-			if (((*context->windows[index].flags) & GUI_VISIBLE) && (RECT_CONTAINS_POINT(*context->windows[index].bounds, context->mousePosition))) {
+			if (((*context->windows[index].flags) & GUI_VISIBLE) 
+				&& (RECT_CONTAINS_POINT(*context->windows[index].bounds, context->mousePosition))) {
 				context->windows[index].receiveEvents = receiveEvents;
 				receiveEvents = false;
 			} else {
@@ -301,8 +303,6 @@ void GUIContextInit(GUIContext* context) {
 #if defined IMGUI_INCLUDE_WINDOW_MANAGER
 	context->count = 0;
 	context->modal = -1;
-	context->modalAlertProc = nullptr;
-	context->modalUserData = nullptr;
 #endif // IMGUI_INCLUDE_WINDOW_MANAGER
 	context->clip = {0, 0, 0, 0};
 }
@@ -1603,6 +1603,10 @@ Layout BeginWindow(ivec4* rbounds, const char* text, uint32_t margin, uint32_t* 
 
 	GUIDrawQuad(bounds, context->style.colors[GUI_COLOR_PANEL]);
 	context->viewport = bounds;
+	context->viewport.x += 1;
+	context->viewport.y += 1;
+	context->viewport.z -= 1;
+	context->viewport.w -= 1;
 
 	if (*flags & GUI_WINDOW_TITLEBAR) {
 		bounds.w = std::max(bounds.w, bounds.y + context->style.values[GUI_VALUE_TITLEBAR_HEIGHT] + 15);
@@ -1657,8 +1661,6 @@ void SetLayout(const Layout& layout) {
 	switch (context->layout.type) {
 	case GUI_LAYOUT_BORDER :
 		if (context->layout.border.header + context->layout.border.body > 1.0f) {
-			printf("assert(%f + %f < 1.0f)\n", context->layout.border.header, context->layout.border.body);
-			printf("assert(%f < 1.0f)\n", context->layout.border.header + context->layout.border.body);
 			assert(context->layout.border.header + context->layout.border.body <= 1.0f);
 		}
 		context->layout.border.body = 1.0f - (context->layout.border.header + context->layout.border.footer);

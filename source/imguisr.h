@@ -2,7 +2,7 @@
 #define __RENDERER_H__
 
 //#define IMGUI_INCLUDE_WINDOW_MANAGER
-#include "GUI.h"
+#include "imgui.h"
 #include "stb_truetype.h"
 
 #define GUI_ICON_PLAY         (GUI_ICON_CUSTOM + 0)

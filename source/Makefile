@@ -11,7 +11,7 @@ LIB_DIRS=
 LIB_FILES=
 C_FLAGS=-O3 -g3 -Wall -D_DEBUG
 L_FLAGS=
-C_FILES=GUI.cpp Renderer.cpp
+C_FILES=imgui.cpp imguisr.cpp
 
 C_FLAGS+=$(addprefix -I, $(INCLUDE))
 L_FLAGS+=$(addprefix -L, $(LIB_DIRS)) $(addprefix -l, $(LIB_FILES)) 

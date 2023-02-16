@@ -65,7 +65,7 @@ Pane and Panels are both containers but Panes provide additional functionality n
 #ifndef __GUI_H__
 #define __GUI_H__
 
-//#define IMGUI_INCLUDE_WINDOW_MANAGER
+#define IMGUI_INCLUDE_WINDOW_MANAGER
 
 #include <stdint.h>
 #include <stdbool.h>
@@ -271,11 +271,8 @@ typedef struct GUIContext {
 	ivec2 extents;
 #if defined IMGUI_INCLUDE_WINDOW_MANAGER
 	static const uint32_t MAX_WINDOW_COUNT = 8;
-	typedef void (*ModalAlertProc)(void*, const ivec4&);
 	
 	WindowInfo windows[MAX_WINDOW_COUNT];
-	ModalAlertProc modalAlertProc;
-	void* modalUserData;
 	uint32_t count;
 	int32_t modal;
 #endif
