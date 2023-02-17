@@ -1,0 +1,3 @@
+[submodule "source/WindowCanvas"]
+	path = source/WindowCanvas
+	url = https://github.com/Florinacho/WindowCanvas.git
