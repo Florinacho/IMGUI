@@ -39,7 +39,7 @@ Implemented containers:
 
   - ScrollPane
     *groups multiple elements into one with a virtual size and uses scrollbars for navigation
-	
+
   - Frame
 
 
@@ -48,7 +48,7 @@ Pane and Panels are both containers but Panes provide additional functionality n
 +---------------------------+
 |          Margin           |
 |  +---------------------+  |
-|  |       Border	     |  |
+|  |       Border        |  |
 |  |  +---------------+  |  |
 |  |  |    Padding    |  |  |
 |  |  |  +---------+  |  |  |
@@ -102,7 +102,9 @@ enum GUIOrientation : uint8_t {
 #define GUI_KEY_END    3
 #define GUI_KEY_LEFT   4
 #define GUI_KEY_RIGHT  5
-#define GUI_KEY_COUNT  6
+#define GUI_KEY_UP     6
+#define GUI_KEY_DOWN   7
+#define GUI_KEY_COUNT  8
 
 #define GUI_ICON_CLOSE        0
 #define GUI_ICON_ARROW_LEFT   1
@@ -128,11 +130,8 @@ enum GUIOrientation : uint8_t {
 
 // Style variables
 #define GUI_VALUE_TITLEBAR_HEIGHT 0
-#define GUI_VALUE_SCROLLBAR_WIDTH 1
-#define GUI_VALUE_SLIDER_WIDTH    2
-#define GUI_VALUE_BUTTON_WIDTH    3
-#define GUI_VALUE_WINDOW_PADDING  4
-#define GUI_VALUE_COUNT           5
+#define GUI_VALUE_SLIDER_WIDTH    1
+#define GUI_VALUE_COUNT           2
 
 const uint32_t GUI_NONE                = 0;
 const uint32_t GUI_VISIBLE             = 1 << 0;
@@ -141,20 +140,21 @@ const uint32_t GUI_BACKGROUND          = 1 << 2;
 const uint32_t GUI_FOREGROUND          = 1 << 3;
 const uint32_t GUI_OUTLINE             = 1 << 4;
 const uint32_t GUI_FOCUSED             = 1 << 5;
-const uint32_t GUI_CLICKED             = 1 << 15;
+const uint32_t GUI_CLICKED             = 1 << 6;
 
-const uint32_t GUI_WINDOW_TITLEBAR     = 1 << 6;
-const uint32_t GUI_WINDOW_CLOSE        = 1 << 7;
-const uint32_t GUI_WINDOW_MOVE         = 1 << 8;
-const uint32_t GUI_WINDOW_SIZE         = 1 << 9;
+const uint32_t GUI_WINDOW_TITLEBAR     = 1 << 7;
+const uint32_t GUI_WINDOW_CLOSE        = 1 << 8;
+const uint32_t GUI_WINDOW_MOVE         = 1 << 9;
+const uint32_t GUI_WINDOW_SIZE         = 1 << 10;
 const uint32_t GUI_WINDOW_DECORATION   = GUI_WINDOW_TITLEBAR | GUI_WINDOW_CLOSE;
 
-const uint32_t GUI_HIDDEN              = 1 << 10;
+const uint32_t GUI_HIDDEN              = 1 << 11;
+const uint32_t GUI_MULTILINE           = 1 << 12;
 
-const uint32_t GUI_ALIGN_LEFT          = 1 << 11;
-const uint32_t GUI_ALIGN_BOTTOM        = 1 << 12;
-const uint32_t GUI_ALIGN_RIGHT         = 1 << 13;
-const uint32_t GUI_ALIGN_TOP           = 1 << 14;
+const uint32_t GUI_ALIGN_LEFT          = 1 << 13;
+const uint32_t GUI_ALIGN_BOTTOM        = 1 << 14;
+const uint32_t GUI_ALIGN_RIGHT         = 1 << 15;
+const uint32_t GUI_ALIGN_TOP           = 1 << 16;
 
 const uint32_t GUI_ALIGN_LEFT_TOP      = GUI_ALIGN_TOP | GUI_ALIGN_LEFT;
 const uint32_t GUI_ALIGN_LEFT_CENTER   = GUI_ALIGN_TOP | GUI_ALIGN_BOTTOM | GUI_ALIGN_LEFT;
@@ -173,10 +173,10 @@ const uint32_t GUI_FLAGS_BUTTON        = GUI_VISIBLE | GUI_ENABLED | GUI_BACKGRO
 const uint32_t GUI_FLAGS_SPINNER       = GUI_VISIBLE | GUI_ENABLED | GUI_BACKGROUND | GUI_FOREGROUND |               GUI_ALIGN_CENTER;
 const uint32_t GUI_FLAGS_CHECKBOX      = GUI_VISIBLE | GUI_ENABLED | GUI_BACKGROUND | GUI_FOREGROUND | GUI_OUTLINE;
 const uint32_t GUI_FLAGS_PROGRESSBAR   = GUI_VISIBLE |               GUI_BACKGROUND | GUI_FOREGROUND | GUI_OUTLINE;
-const uint32_t GUI_FLAGS_SLIDER        = GUI_VISIBLE | GUI_ENABLED | GUI_BACKGROUND | GUI_FOREGROUND | GUI_OUTLINE;
-const uint32_t GUI_FLAGS_TEXTBOX       = GUI_VISIBLE | GUI_ENABLED | GUI_BACKGROUND | GUI_FOREGROUND | GUI_OUTLINE | GUI_ALIGN_CENTER;
+const uint32_t GUI_FLAGS_SLIDER        = GUI_VISIBLE | GUI_ENABLED | GUI_BACKGROUND | GUI_FOREGROUND;
+const uint32_t GUI_FLAGS_TEXTBOX       = GUI_VISIBLE | GUI_ENABLED | GUI_BACKGROUND | GUI_FOREGROUND | GUI_OUTLINE | GUI_ALIGN_LEFT_TOP;
 const uint32_t GUI_FLAGS_PANEL         = GUI_VISIBLE;
-const uint32_t GUI_FLAGS_WINDOW        = GUI_VISIBLE | GUI_ENABLED | GUI_BACKGROUND | GUI_FOREGROUND | GUI_OUTLINE | GUI_WINDOW_MOVE  | GUI_WINDOW_DECORATION;
+const uint32_t GUI_FLAGS_WINDOW        = GUI_VISIBLE | GUI_ENABLED | GUI_BACKGROUND | GUI_FOREGROUND | GUI_OUTLINE | GUI_ALIGN_CENTER | GUI_WINDOW_MOVE  | GUI_WINDOW_DECORATION;
 
 typedef struct {
 	int32_t x, y;
@@ -230,9 +230,11 @@ typedef struct {
 struct GUIContext;
 typedef void (*DrawLineProc)(GUIContext*, const ivec2&, const ivec2&, const color_t&);
 typedef void (*DrawQuadProc)(GUIContext*, const ivec4&, const color_t&);
+typedef void (*DrawCharProc)(GUIContext*, char c, float pos_x, float pos_y, const color_t& color);
 typedef void (*DrawTextProc)(GUIContext*, const char*, const ivec4&, const color_t&, uint32_t);
 typedef void (*DrawIconProc)(GUIContext*, int32_t, const ivec4&, const color_t&);
 typedef void (*DrawBorderProc)(GUIContext*, const ivec4&, const color_t&);
+typedef ivec2 (*GetCharSizeProc)(GUIContext*, char);
 typedef ivec2 (*GetTextSizeProc)(GUIContext*, const char*, uint32_t);
 
 #if defined IMGUI_INCLUDE_WINDOW_MANAGER
@@ -251,40 +253,46 @@ typedef struct GUIContext {
 	void* opaqueData;	
 	DrawLineProc drawLine;
 	DrawQuadProc drawQuad;
+	DrawCharProc drawChar;
 	DrawTextProc drawText;
 	DrawIconProc drawIcon;
 	DrawBorderProc drawBorder;
+	GetCharSizeProc getCharSize;
 	GetTextSizeProc getTextSize;
-	
+
 	ivec2 mousePosition;
 	ivec2 lastMousePosition;
 	bool mouseButtonLeft;
 	bool lastMouseButtonLeft;
 	int32_t mouse_wheel_delta;
-	
+
 	KeyEvent keyEvents[GUI_MAX_KEY_EVENT_COUNT];
 	uint32_t keyEventCount;
 	bool events_enabled;
-	
+
 	ivec4 viewport;
 	ivec4 clip;
 	ivec2 extents;
 #if defined IMGUI_INCLUDE_WINDOW_MANAGER
 	static const uint32_t MAX_WINDOW_COUNT = 8;
-	
+
 	WindowInfo windows[MAX_WINDOW_COUNT];
 	uint32_t count;
 	int32_t modal;
 #endif
 } GUIContext;
 
-void GUIDrawText(const char* text, const ivec4& bounds, const color_t& color, uint32_t flags);
+void GUIDrawChar(char c, const ivec2& position, const color_t& color);
+
+void GUIDrawText(const char* text, const ivec4& bounds, const color_t& color, uint32_t flags = 0);
 
 void GUIDrawLine(const ivec2& begin, const ivec2& end, const color_t& color);
 
 void GUIDrawQuad(const ivec4& bounds, const color_t& color);
 
 void GUIDrawIcon(int32_t id, const ivec4& bounds, const color_t& color);
+
+void GUIDrawBorder(const ivec4& rect, const color_t& color);
 
 
 void GUIOnCursorEvent(int32_t x, int32_t y);
@@ -324,6 +332,8 @@ void SetLayout(const Layout& layout);
 
 Layout* GetLayout();
 
+ivec4 LayoutGetAbsoluteBounds(const ivec4& bounds = {}, bool advance = true);
+
 
 void DummyElement(uint32_t count = 1);
 
@@ -355,7 +365,9 @@ bool Slider(float&, uint32_t boxLength, GUIOrientation orientation, uint32_t = G
 
 bool RangeSlider(float&, float&, GUIOrientation = GUI_VERTICAL, uint32_t = GUI_FLAGS_SLIDER, const ivec4& = {});
 
-bool TextBox(char*, uint32_t, int32_t&, uint32_t = GUI_FLAGS_TEXTBOX, const ivec4& = {});
+bool TextBox(char*, uint32_t, int32_t&, uint32_t = GUI_FLAGS_TEXTBOX, uint32_t padding = 3, const ivec4& = {});
+
+bool TextArea(char*, uint32_t, int32_t&, uint32_t = GUI_FLAGS_TEXTBOX, uint32_t padding = 2, const ivec4& = {});
 
 bool Scrollbar(float& proc, float barProc = 0.1f, GUIOrientation orientation = GUI_VERTICAL, float step = 0.1f, const ivec4& bounds = {});
 #if 0
@@ -367,7 +379,7 @@ bool Palette(ivec4& value, uint32_t flags = GUI_ENABLED | GUI_VISIBLE | GUI_OUTL
 #endif
 Layout BeginWindow(ivec4*, const char* = nullptr, uint32_t padding = 0, uint32_t* flags = nullptr);
 
-Layout BeginPanel(const Layout& = Layout(), uint32_t padding = 0, uint32_t flags = GUI_FLAGS_PANEL, const ivec4& = {});
+Layout BeginPanel(const Layout& = AbsoluteLayout(), uint32_t padding = 0, uint32_t flags = GUI_FLAGS_PANEL, const ivec4& = {});
 
 Layout BeginSplitPanel(GUIOrientation orientation, float&, uint32_t padding = 0, uint32_t flags = GUI_FLAGS_PANEL, const ivec4& = ivec4());
 

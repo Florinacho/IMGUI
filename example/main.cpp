@@ -12,6 +12,8 @@
 #define KEY_SPACE      0x41
 #define KEY_HOME       0x6E
 #define KEY_END        0x73
+#define KEY_UP         0x6F
+#define KEY_DOWN       0x74
 #define KEY_LEFT       0x71
 #define KEY_RIGHT      0x72
 #define KEY_DELETE     0x77
@@ -21,6 +23,8 @@
 #define KEY_SPACE      VK_SPACE
 #define KEY_HOME       VK_HOME
 #define KEY_END        VK_END
+#define KEY_UP         VK_UP
+#define KEY_DOWN       VK_DOWN
 #define KEY_LEFT       VK_LEFT
 #define KEY_RIGHT      VK_RIGHT
 #define KEY_DELETE     VK_DELETE
@@ -38,6 +42,8 @@ int main(int argc, char* argv[]) {
 	SoftGUIInit(&gui, WINDOW_WIDTH, WINDOW_HEIGHT, pixelBuffer, "consola.ttf", 16.0f);
 	gui.context.keyMap[GUI_KEY_HOME  ] = KEY_HOME;
 	gui.context.keyMap[GUI_KEY_END   ] = KEY_END;
+	gui.context.keyMap[GUI_KEY_UP    ] = KEY_UP;
+	gui.context.keyMap[GUI_KEY_DOWN  ] = KEY_DOWN;
 	gui.context.keyMap[GUI_KEY_LEFT  ] = KEY_LEFT;
 	gui.context.keyMap[GUI_KEY_RIGHT ] = KEY_RIGHT;
 	gui.context.keyMap[GUI_KEY_BACK  ] = KEY_BACKSPACE;

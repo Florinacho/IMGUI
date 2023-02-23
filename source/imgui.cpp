@@ -5,9 +5,63 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <time.h>
+#include <time.h>    // time(NULL)
 
 static GUIContext* context = NULL;
+
+#define CUR_POS_BEGIN      0
+#define CUR_POS_END        1
+#define CUR_POS_PREV_LINE  2
+#define CUR_POS_NEXT_LINE  3
+
+int GetCursorPosition(const char* text, int cursor) {
+	int ans = 0;
+
+	for (; ans < cursor; ++ans) {
+		if (text[cursor - ans - 1] == '\n') {
+			break;
+		}
+	}
+
+	return ans;
+}
+
+int MoveCursor(const char* text, int cursor, int location) {
+	int leftCount = 0;
+	int max = 0;
+
+	switch (location) {
+	case CUR_POS_BEGIN :
+		while ((cursor > 0) && (text[cursor - 1] != '\n')) {
+			--cursor;
+		}
+		break;
+	case CUR_POS_END :
+		while (text[cursor] != '\0' && text[cursor] != '\n') {
+			++cursor;
+		}
+		break;
+	case CUR_POS_PREV_LINE :
+		leftCount = GetCursorPosition(text, cursor);
+		for (cursor -= (leftCount + (leftCount != cursor)); ((cursor > 0) && (text[cursor - 1] != '\n')); --cursor) {
+			++max;
+		}
+		cursor += std::min(leftCount, max);
+		break;
+	case CUR_POS_NEXT_LINE :
+		leftCount = GetCursorPosition(text, cursor);
+
+		cursor = MoveCursor(text, cursor, CUR_POS_END);
+		cursor += (text[cursor] != '\0');
+
+		for (int index = 0; (index < leftCount) && (text[cursor] != '\0') && (text[cursor] != '\n'); ++index) {
+			++cursor;
+		}
+		break;
+	}
+	
+	return cursor;
+}
 
 #define RECT_CONTAINS_POINT(RECT, POINT) (((POINT).x >= (RECT).x) && ((POINT).x < (RECT).z) && ((POINT).y >= (RECT).y) && ((POINT).y < (RECT).w))
 
@@ -85,7 +139,7 @@ void WMOnCursorEvent(int32_t x, int32_t y) {
 }
 
 void WMOnButtonEvent(int32_t button, int32_t value) {
-	if ((button == GUI_BUTTON_LEFT) && (value == GUI_BUTTON_PRESSED)) {
+	if ((value == GUI_BUTTON_PRESSED)) {
 		if (context->modal >= 0) {
 			const int32_t index = WMGetIndexByID(context->modal);
 			if (index >= 0 && index <= (int32_t)context->count) {
@@ -133,13 +187,19 @@ int RectGetArea(const ivec4& rect) {
 	return width * height;
 }
 
+void GUIDrawChar(char c, const ivec2& position, const color_t& color) {
+	if (context == NULL) {
+		return;
+	}
+	context->drawChar(context, c, position.x, position.y, color);
+}
+
 void GUIDrawText(const char* text, const ivec4& rect, const color_t& color, uint32_t flags) {
-	ivec4 bounds = rect;
 	if (context == NULL) {
 		return;
 	}
 	// Clipping is done in the renderer
-	context->drawText(context, text, bounds, color, flags);
+	context->drawText(context, text, rect, color, flags);
 }
 
 void GUIDrawLine(const ivec2& begin, const ivec2& end, const color_t& color) {
@@ -192,14 +252,100 @@ void DrawBorder(GUIContext* context, const ivec4& bounds, const color_t& color) 
 	GUIDrawLine({bounds.x, bounds.y}, {bounds.z, bounds.y}, color);
 }
 
+ivec2 GetTextSize(GUIContext* guiContext, const char* text, uint32_t length) {
+	int maxX = 0;
+	ivec2 ans = {0, 0};
+	for (uint32_t index = 0; (index < length) && (text[index] != '\0'); ++index) {
+		switch (text[index]) {
+		case '\n' :
+			ans.x = 0;
+			ans.y += 16;
+			break;
+		default :
+			const ivec2 charSize = context->getCharSize(guiContext, text[index]);
+			ans.x += charSize.x;
+			ans.y = std::max(ans.y, charSize.y);
+			maxX = std::max(maxX, ans.x);
+			break;
+		}
+	}
+	ans.x = std::max(ans.x, maxX);
+	return ans;
+}
+
+int GetLineXOffset(const char* text, const ivec4& bounds, uint32_t flags) {
+	const int lineSize = context->getTextSize(context, text, MoveCursor(text, 0, CUR_POS_END)).x;
+	const int halfLineSize = lineSize / 2;
+
+	switch (flags & (GUI_ALIGN_LEFT | GUI_ALIGN_RIGHT)) {
+	case GUI_ALIGN_LEFT :
+		return bounds.x;
+	case GUI_ALIGN_RIGHT :
+		return bounds.z - lineSize;
+	case GUI_ALIGN_LEFT | GUI_ALIGN_RIGHT :
+		const int center = (bounds.z + bounds.x) / 2;
+		const int halfBoundSize = (bounds.z - bounds.x) / 2 + 1;
+		return center - std::min(halfLineSize, halfBoundSize);
+	}
+	return bounds.x;
+}
+
+int GetLineYOffset(const char* text, const ivec4& bounds, uint32_t flags) {
+	const int midBounds = (bounds.y + bounds.w) / 2;
+	const int halfBounds = (bounds.w - bounds.y) / 2 + 1;
+
+	const int textSize = context->getTextSize(context, text, strlen(text)).y;
+	const int halfTextSize = textSize / 2;
+
+	switch (flags & (GUI_ALIGN_TOP | GUI_ALIGN_BOTTOM)) {
+	case GUI_ALIGN_TOP :
+		return bounds.y;
+	case GUI_ALIGN_BOTTOM :
+		return bounds.w - textSize;
+		break;
+	case GUI_ALIGN_TOP | GUI_ALIGN_BOTTOM :
+		return midBounds - std::min(halfTextSize, halfBounds);
+		break;
+	}
+
+	return bounds.y;
+}
+
+void DrawText(GUIContext* context, const char* text, const ivec4& bounds, const color_t& color, uint32_t flags) {
+	float pos_x = GetLineXOffset(text, bounds, flags);
+	float pos_y = GetLineYOffset(text, bounds, flags);
+
+	pos_y += 13; // WTF ?!
+	while (*text) {
+		switch (*text) {
+		case '\n' :
+			if (flags & GUI_MULTILINE) {
+				pos_y += 16.0f;
+				pos_x = GetLineXOffset(text + 1, bounds, flags);
+			}
+			break;
+		default :
+			const int charWidth = context->getCharSize(context, *text).x;
+			if ((pos_x + charWidth <= bounds.z && pos_y <= bounds.w)) { // seems to draw 1 more char 
+				context->drawChar(context, *text, pos_x, pos_y, color);
+				pos_x += charWidth;
+			}
+			break;
+		}
+		++text;
+	}
+}
+
 void GUISetActiveContext(GUIContext* ncontext) {
 	context = ncontext;
 	
 	assert(context != NULL);
 	assert(context->drawLine != NULL);
 	assert(context->drawQuad != NULL);
+	assert(context->drawChar != NULL);
 	assert(context->drawText != NULL);
 	assert(context->drawIcon != NULL);
+	assert(context->getCharSize != NULL);
 	assert(context->getTextSize != NULL);
 }
 
@@ -267,16 +413,18 @@ bool Movable(ivec4& bounds) {
 }
 
 void GUIContextInit(GUIContext* context) {
-	context->layout = AbsoluteLayout();
+	context->layout = GridLayout(1, 1, 0);
 		
-	context->opaqueData = NULL;
 	context->drawLine = NULL;
 	context->drawQuad = NULL;
-	context->drawText = NULL;
+	context->drawChar = NULL;
 	context->drawIcon = NULL;
-	context->getTextSize = NULL;
+	context->getCharSize = NULL;
+	context->opaqueData = NULL;
 	
 	context->drawBorder = DrawBorder;
+	context->drawText = DrawText;
+	context->getTextSize = GetTextSize;
 	
 	context->lastMousePosition = {-1, -1};
 	context->mousePosition = {-1, -1};
@@ -296,9 +444,7 @@ void GUIContextInit(GUIContext* context) {
 	context->style.colors[GUI_COLOR_BORDER]        = { 25,  25,  25, 255};
 	
 	context->style.values[GUI_VALUE_TITLEBAR_HEIGHT] = 20;
-	context->style.values[GUI_VALUE_SCROLLBAR_WIDTH] = 16;
 	context->style.values[GUI_VALUE_SLIDER_WIDTH]    =  7;
-	context->style.values[GUI_VALUE_WINDOW_PADDING]  =  4;
 
 #if defined IMGUI_INCLUDE_WINDOW_MANAGER
 	context->count = 0;
@@ -334,7 +480,7 @@ void GUIOnCharEvent(char c) {
 	if (context->keyEventCount >= GUI_MAX_KEY_EVENT_COUNT) {
 		return;
 	}
-	if (c >= 32 && c < 128) {
+	if ((c >= 32 && c < 128) || (c == '\n')) {
 		context->keyEvents[context->keyEventCount++] = {(uint32_t)c, GUI_EVENT_CHAR};
 	}
 }
@@ -357,6 +503,7 @@ ivec4 LayoutGetBounds(const ivec4& bounds, bool advance) {
 	switch (context->layout.type) {
 	case GUI_LAYOUT_ABSOLUTE :
 		if ((bounds.w - bounds.y + bounds.z - bounds.x) != 0) {
+			//assert(false);
 			ans = bounds;
 		} else {
 			ans.x = 0;
@@ -906,9 +1053,10 @@ bool SliderInternal(float& proc, float step, int32_t boxLength, GUIOrientation o
 		}
 		if (flags & GUI_FOREGROUND) {
 			GUIDrawQuad(boxBounds, context->style.colors[clicked ? GUI_COLOR_ACTIVE : focused ? GUI_COLOR_FOCUSED : GUI_COLOR_PANE]);
+			GUIDrawBorder(boxBounds, context->style.colors[GUI_COLOR_BORDER]);
 		}
 		if (flags & GUI_OUTLINE) {
-			GUIDrawBorder(boxBounds, context->style.colors[GUI_COLOR_BORDER]);
+			GUIDrawBorder(bounds, context->style.colors[GUI_COLOR_BORDER]);
 		}
 	}
 
@@ -1060,45 +1208,59 @@ bool RangeSlider(float& procMin, float& procMax, GUIOrientation orientation, uin
 	return RangeSliderInternal(procMin, procMax, 0.1f, context->style.values[GUI_VALUE_SLIDER_WIDTH], orientation, flags, absoluteBounds);
 }
 
-bool TextBox(char* text, const uint32_t max_length, int& carrot, uint32_t flags, const ivec4& bounds) {
+bool TextBox(char* text, const uint32_t max_length, int& carrot, uint32_t flags, uint32_t padding, const ivec4& bounds) {
 	const int32_t CARROT_WIDTH = 1;
 	const int32_t FONT_HEIGHT = 16;
 
+	static time_t lastBlinkTime = 0;
+
 	const ivec4 absoluteBounds = LayoutGetAbsoluteBounds(bounds, true);
-	const ivec4 textBounds = {absoluteBounds.x + 3, absoluteBounds.y + 2, absoluteBounds.z - 3, absoluteBounds.w - 2};
+	const ivec4 textBounds = {absoluteBounds.x + (int)padding, absoluteBounds.y + (int)padding, absoluteBounds.z - (int)padding, absoluteBounds.w - (int)padding};
 	const int32_t width = textBounds.z - textBounds.x;
 	const int32_t height = textBounds.w - textBounds.y;
-	const bool focused = RECT_CONTAINS_POINT(textBounds, GetMousePosition(true));
+	const bool focused = RECT_CONTAINS_POINT(textBounds, GetMousePosition(true)) && context->events_enabled;
+	const int offsetY = GetLineYOffset(text, textBounds, flags);
+	int offsetX = 0;
+	
 	int32_t length = strlen(text);
 	int32_t offset = 0;
 	bool ans = false;
 
+	// Offset text to keep carrot in viewport
 	if (carrot > 0) {
-		int32_t pos_x = context->getTextSize(context, text, carrot).x;
-		while (pos_x > width) {
-			pos_x -= context->getTextSize(context, text, 1).x;
+		ivec2 pos = context->getTextSize(context, text, carrot);
+		while (pos.x > width) {
+			pos.x -= context->getTextSize(context, text, 1).x;
 			++offset;
 		}
 	}
-	if (flags & GUI_BACKGROUND) {
-		GUIDrawQuad(absoluteBounds, context->style.colors[(carrot >= 0) ? GUI_COLOR_FOCUSED : GUI_COLOR_PANE]);
-	}
-	if (flags & GUI_OUTLINE) {
-		GUIDrawBorder(absoluteBounds, context->style.colors[(carrot >= 0) ? GUI_COLOR_ACTIVE : focused ? GUI_COLOR_FOCUSED : GUI_COLOR_BORDER]);
-	}
+
+	// Read mouse events
 	if (flags & GUI_ENABLED) {
 		if (GetLastMouseLeftButton(true) && (GetMouseLeftButton(true) == false)) {
 			if (focused) {
-				int32_t pos_x = 0;
-				for (carrot = offset; carrot < length; ++carrot){ 
-					int32_t k = context->getTextSize(context, text + carrot, 1).x;
-					if (pos_x + k >= GetMousePosition().x - textBounds.x) {
-						
+				// Jump lines
+				int jumpLineCount = (GetMousePosition().y - offsetY) / 16;
+				for (char* ptr = text; (*ptr != '\0') && (jumpLineCount > 0); ++ptr, ++offset) {
+					switch (*ptr) {
+					case '\n' :
+						--jumpLineCount;
 						break;
-					} else {
-						pos_x += k;
 					}
 				}
+				// jump chars
+				offsetX = ((flags & GUI_MULTILINE) ? GetLineXOffset(text + offset, textBounds, flags) : textBounds.x);
+				int32_t pos_x = 0;
+				for (carrot = offset; (carrot < length && text[carrot] != '\n'); ++carrot){ 
+					int32_t charWidth = context->getTextSize(context, text + carrot, 1).x;
+					if (pos_x + charWidth >= GetMousePosition().x - offsetX) {
+						lastBlinkTime = time(NULL);
+						break;
+					} else {
+						pos_x += charWidth;
+					}
+				}
+				lastBlinkTime = time(NULL);
 			} else {
 				carrot = -1;
 			}
@@ -1106,18 +1268,30 @@ bool TextBox(char* text, const uint32_t max_length, int& carrot, uint32_t flags,
 	} else {
 		carrot = -1;
 	}
+
+	// Read key events
 	if (carrot >= 0) {
 		for (uint32_t index = 0; index < context->keyEventCount; ++index) {
 			switch (context->keyEvents[index].type) {
 			case GUI_EVENT_KEY_DOWN :
 				if (context->keyEvents[index].value == context->keyMap[GUI_KEY_HOME]) {
-					carrot = 0;
+					carrot = MoveCursor(text, carrot, CUR_POS_BEGIN);
+					lastBlinkTime = time(NULL);
 				} else if (context->keyEvents[index].value == context->keyMap[GUI_KEY_END]) {
-					carrot = length;
+					carrot = MoveCursor(text, carrot, CUR_POS_END);
+					lastBlinkTime = time(NULL);
+				} else if (context->keyEvents[index].value == context->keyMap[GUI_KEY_UP]) {
+					carrot = MoveCursor(text, carrot, CUR_POS_PREV_LINE);
+					lastBlinkTime = time(NULL);
+				} else if (context->keyEvents[index].value == context->keyMap[GUI_KEY_DOWN]) {
+					carrot = MoveCursor(text, carrot, CUR_POS_NEXT_LINE);
+					lastBlinkTime = time(NULL);
 				} else if (context->keyEvents[index].value == context->keyMap[GUI_KEY_LEFT]) {
 					carrot = std::max(carrot - 1, 0);
+					lastBlinkTime = time(NULL);
 				} else if (context->keyEvents[index].value == context->keyMap[GUI_KEY_RIGHT]) {
 					carrot = std::min(carrot + 1, length);
+					lastBlinkTime = time(NULL);
 				} else if (context->keyEvents[index].value == context->keyMap[GUI_KEY_BACK]) {
 					if (carrot > 0) {
 						for (int32_t index = --carrot; index < length - 1; ++index) {
@@ -1126,48 +1300,91 @@ bool TextBox(char* text, const uint32_t max_length, int& carrot, uint32_t flags,
 						text[--length] = '\0';
 						ans = true;
 					}
+					lastBlinkTime = time(NULL);
 				} else if (context->keyEvents[index].value == context->keyMap[GUI_KEY_DELETE]) {
 					if (carrot < length) {
 						for (int32_t index = carrot; index < length - 1; ++index) {
 							text[index] = text[index + 1];
 						}
 						text[--length] = '\0';
-						carrot = std::min(carrot, length);
+						ans = true;
+					}
+					lastBlinkTime = time(NULL);
+				}
+				break;
+			case GUI_EVENT_CHAR :
+				switch (context->keyEvents[index].value) {
+				case '\n' : if ((flags & GUI_MULTILINE) == 0) break;
+				default :
+					if (length < (int)max_length - 1) {
+						for (int32_t index = ++length; index >= carrot; --index) {
+							text[index] = text[index - 1];
+						}
+						text[carrot++] = (char)context->keyEvents[index].value;
+						lastBlinkTime = time(NULL);
 						ans = true;
 					}
 				}
 				break;
-			case GUI_EVENT_CHAR :
-				if (length < (int)max_length - 1) {
-					length += 1;
-					for (int32_t index = length; index >= carrot; --index) {
-						text[index] = text[index - 1];
-					}
-					text[carrot++] = (char)context->keyEvents[index].value;
-					ans = true;
-				} else {
-					printf("\a");
-				}
-				break;
-			default :
-				assert(!"?!");
 			}
 		}
-		context->keyEventCount = 0;
-		if ((flags & GUI_FOREGROUND) && (time(NULL) % 2 == 0)) {
-			const int32_t carrotPosition = context->getTextSize(context, text + offset, std::max(carrot - offset, 0)).x;
-			const int32_t carrotHeight = std::min(height, FONT_HEIGHT);
-			GUIDrawQuad({textBounds.x + carrotPosition, textBounds.y, textBounds.x + carrotPosition + CARROT_WIDTH, textBounds.y + carrotHeight}, context->style.colors[GUI_COLOR_TEXT]);
-		}
 	}
-	if ((flags & GUI_FOREGROUND) && (height >= FONT_HEIGHT)) {
-		if (flags & GUI_HIDDEN) {
-			// TODO: DrawIcon(GUI_ICON_CLOSE) ?
-		} else {
-			GUIDrawText(text + (offset > 0) * offset, textBounds, context->style.colors[GUI_COLOR_TEXT], 0);
+	
+	if (flags & GUI_VISIBLE) {
+		if (flags & GUI_BACKGROUND) {
+			GUIDrawQuad(absoluteBounds, context->style.colors[(carrot >= 0) ? GUI_COLOR_FOCUSED : GUI_COLOR_PANE]);
+		}
+
+		if (flags & GUI_FOREGROUND) {
+			if (height >= FONT_HEIGHT) {
+				if (flags & GUI_HIDDEN) {
+					// TODO: DrawIcon(GUI_ICON_CLOSE) ?
+				} else {
+					GUIDrawText(text + (offset > 0) * offset, textBounds, context->style.colors[GUI_COLOR_TEXT], (flags & (GUI_MULTILINE | GUI_ALIGN_CENTER)));
+				}
+			}
+			if ((carrot >= 0) && ((time(NULL) - lastBlinkTime) % 2 == 0)) {
+				ivec2 carrotPosition = {0, 0};
+				for (int index = 0; index < std::max(carrot - offset, 0) && (text[index] != '\0'); ++index) {
+					switch (text[index]) {
+					case '\n' :
+						carrotPosition.x = 0;
+						carrotPosition.y += 16;
+						break;
+					default :
+						carrotPosition.x += context->getCharSize(context, text[index]).x;
+						break;
+					}
+				}
+				int carrotHeight = std::min(height, FONT_HEIGHT);
+				
+				
+				offsetX = ((flags & GUI_MULTILINE) ? GetLineXOffset(text + MoveCursor(text, carrot, CUR_POS_BEGIN), textBounds, flags) : textBounds.x);
+				GUIDrawQuad({offsetX + carrotPosition.x, offsetY + carrotPosition.y, offsetX + carrotPosition.x + CARROT_WIDTH, offsetY + carrotPosition.y + carrotHeight}, context->style.colors[GUI_COLOR_TEXT]);
+			}
+		}
+
+		if (flags & GUI_OUTLINE) {
+			GUIDrawBorder(absoluteBounds, context->style.colors[(carrot >= 0) ? GUI_COLOR_ACTIVE : focused ? GUI_COLOR_FOCUSED : GUI_COLOR_BORDER]);
 		}
 	}
 
+	return ans;
+}
+
+bool TextArea(char* text, const uint32_t max_length, int& carrot, uint32_t flags, uint32_t padding, const ivec4& bounds) {
+	bool ans = false;
+	static int offsetX = 0;
+	static int offsetY = 0;
+	
+	ivec2 size = context->getTextSize(context, text, strlen(text));
+	size.x += padding * 2;
+	size.y += padding * 2;
+	
+	ScrollPanel(size.x, size.y, &offsetX, &offsetY, 0, GUI_FLAGS_PANEL, bounds) {
+		ans = TextBox(text, max_length, carrot, flags);
+	}
+	
 	return ans;
 }
 
@@ -1214,32 +1431,19 @@ bool Spinner(int& value, const char** labels, uint32_t count, uint32_t flags, co
 }
 
 bool Scrollbar(float& value, float barProc, GUIOrientation orientation, float step, const ivec4& bounds) {
-	bool ans = false;
-	
-	float buttonProc;
-	uint8_t buttonIcons[2];
-	int barLength;
-	int length;
 	const ivec4 rbounds = LayoutGetBounds(bounds, false);
-	
+	uint8_t buttonIcons[2];
+	int length;
+	bool ans = false;
+
 	switch (orientation) {
 	case GUI_VERTICAL :
 		length = rbounds.w - rbounds.y;
-		if (length < 32) {
-			return false;
-		}
-		barLength = length - 32;
-		buttonProc = 16.0f / (float)length;
 		buttonIcons[0] = GUI_ICON_ARROW_UP;
 		buttonIcons[1] = GUI_ICON_ARROW_DOWN;
 		break;
 	case GUI_HORIZONTAL :
 		length = rbounds.z - rbounds.x;
-		if (length < 32) {
-			return false;
-		}
-		barLength = length - 32;
-		buttonProc = 16.0f / (float)length;
 		buttonIcons[0] = GUI_ICON_ARROW_LEFT;
 		buttonIcons[1] = GUI_ICON_ARROW_RIGHT;
 		break;
@@ -1247,12 +1451,18 @@ bool Scrollbar(float& value, float barProc, GUIOrientation orientation, float st
 		assert(false);
 	}
 
+	if (length < 32) { // TODO: Read Icon glyps size
+		return false;
+	}
+
+	const int barLength = length - 32;
+	const float buttonProc = 16.0f / (float)length;
+
 	Panel(BorderLayout(orientation, buttonProc, buttonProc, 0), 0, GUI_FLAGS_PANEL, bounds) {
 		if (Button(buttonIcons[0])) {
 			value = std::max(value - step, 0.0f);
 			ans = true;
 		}
-		GUIDrawBorder(LayoutGetAbsoluteBounds({}, false), context->style.colors[GUI_COLOR_BORDER]);
 		if (Slider(value, barLength * barProc, orientation, GUI_VISIBLE | GUI_ENABLED | GUI_FOREGROUND | GUI_OUTLINE)) {
 			ans = true;
 		}
@@ -1261,7 +1471,7 @@ bool Scrollbar(float& value, float barProc, GUIOrientation orientation, float st
 			ans = true;
 		}
 	}
-	
+
 	return ans;
 }
 #if 0
@@ -1458,11 +1668,11 @@ Layout BeginSplitPanel(GUIOrientation orientation, float& weight, uint32_t paddi
 }
 
 Layout BeginScrollPanel(int width, int height, int* offsetX, int* offsetY, uint32_t margin, uint32_t flags, const ivec4& bounds) {
-	Layout ans = BeginPanel(AbsoluteLayout());
+	Layout ans = BeginPanel(AbsoluteLayout()); // GridLayout(1, 1, 0)
 	const ivec4 absoluteRectangle = LayoutGetAbsoluteBounds(bounds, false);
 	const int visible_width = absoluteRectangle.z - absoluteRectangle.x;
 	const int visible_height = absoluteRectangle.w - absoluteRectangle.y;
-	const int WIDTH = context->style.values[GUI_VALUE_SCROLLBAR_WIDTH];
+	const int WIDTH = 15 + 2; // ICON Lenght
 	const bool vBarVisible = ((visible_height < height) && (visible_height > WIDTH) && (offsetY != nullptr));
 	const bool hBarVisible = ((visible_width  <  width) && (visible_width > WIDTH) && (offsetX != nullptr));
 	
@@ -1539,7 +1749,7 @@ Layout BeginTabPanel(const char* names, int& selected, uint32_t margin, uint32_t
 			begin = ptr + 1;
 		}
 	}
-	Layout ans = BeginPanel(AbsoluteLayout());
+	Layout ans = BeginPanel(AbsoluteLayout(0));
 	if (count == 0) {
 		ans.run_statement = false;
 	}
@@ -1584,7 +1794,7 @@ Layout BeginTabPanel(const char* names, int& selected, uint32_t margin, uint32_t
 	return ans;
 }
 
-Layout BeginWindow(ivec4* rbounds, const char* text, uint32_t margin, uint32_t* flags) {
+Layout BeginWindow(ivec4* rbounds, const char* title, uint32_t margin, uint32_t* flags) {
 	assert(context != NULL);
 
 	static const int32_t CloseButtonSize = context->style.values[GUI_VALUE_TITLEBAR_HEIGHT];
@@ -1602,28 +1812,25 @@ Layout BeginWindow(ivec4* rbounds, const char* text, uint32_t margin, uint32_t* 
 	}
 
 	GUIDrawQuad(bounds, context->style.colors[GUI_COLOR_PANEL]);
-	context->viewport = bounds;
-	context->viewport.x += 1;
-	context->viewport.y += 1;
-	context->viewport.z -= 1;
-	context->viewport.w -= 1;
+	context->viewport.x = bounds.x + 1;
+	context->viewport.y = bounds.y + 1;
+	context->viewport.z = bounds.z - 1;
+	context->viewport.w = bounds.w - 1;
 
 	if (*flags & GUI_WINDOW_TITLEBAR) {
 		bounds.w = std::max(bounds.w, bounds.y + context->style.values[GUI_VALUE_TITLEBAR_HEIGHT] + 15);
-
+		const int width = bounds.z - bounds.x;
 		ivec4 titlebarRectangle = {bounds.x, bounds.y, bounds.z - CloseButtonSize, bounds.y + context->style.values[GUI_VALUE_TITLEBAR_HEIGHT]};
 		if (*flags & GUI_WINDOW_MOVE) {
-			const int width = bounds.z - bounds.x;
 			const int height = bounds.w - bounds.y;
 			if (Movable(titlebarRectangle)) {
 				bounds = {titlebarRectangle.x, titlebarRectangle.y, titlebarRectangle.x + width, titlebarRectangle.y + height};
 			}
 		}
 		GUIDrawQuad({bounds.x, bounds.y, bounds.z, bounds.y + context->style.values[GUI_VALUE_TITLEBAR_HEIGHT]}, context->style.colors[GUI_COLOR_TITLEBAR]);
-		if (text) {
-			GUIDrawText(text, {bounds.x + 2, bounds.y + 2, bounds.z - CloseButtonSize, bounds.y + context->style.values[GUI_VALUE_TITLEBAR_HEIGHT]}, context->style.colors[GUI_COLOR_TEXT], 0);
+		if (title) {
+			GUIDrawText(title, {bounds.x + 2, bounds.y + 2, bounds.z - CloseButtonSize, bounds.y + context->style.values[GUI_VALUE_TITLEBAR_HEIGHT]}, context->style.colors[GUI_COLOR_TEXT], *flags & GUI_ALIGN_CENTER);
 		}
-		const int32_t width = bounds.z - bounds.x;
 		if ((*flags & GUI_WINDOW_CLOSE)) {
 			bounds.z = std::max(bounds.z, bounds.x + context->style.values[GUI_VALUE_TITLEBAR_HEIGHT]);
 			if (Button(GUI_ICON_CLOSE, GUI_FLAGS_BUTTON, {width - context->style.values[GUI_VALUE_TITLEBAR_HEIGHT] + 1, 1, width - 1, context->style.values[GUI_VALUE_TITLEBAR_HEIGHT] - 1})) {
@@ -1650,6 +1857,10 @@ Layout BeginWindow(ivec4* rbounds, const char* text, uint32_t margin, uint32_t* 
 	}
 
 	GUIDrawBorder(bounds, context->style.colors[GUI_COLOR_BORDER]);
+	context->viewport.x += margin;
+	context->viewport.y += margin;
+	context->viewport.z -= margin;
+	context->viewport.w -= margin;
 	*rbounds = bounds;
 	
 	return ans;

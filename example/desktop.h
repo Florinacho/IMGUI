@@ -7,6 +7,8 @@
 #include "demo4.h"
 #include "calculator.h"
 #include "file_selector.h"
+#include "text_editor.h"
+#include "theme_editor.h"
 
 FileSelectorContext fs = {
 	.bounds = {0, 0, 300, 300},
@@ -81,6 +83,16 @@ bool taskbarWindow() {
 					WMBringIDToFront(3);
 				}
 			}
+			if (notepadFlags & GUI_VISIBLE) {
+				if (Button("Notepad")) {
+					WMBringIDToFront(4);
+				}
+			}
+			if (themeEditorFlags & GUI_VISIBLE) {
+				if (Button("Theme")) {
+					WMBringIDToFront(5);
+				}
+			}
 		}
 	}
 
@@ -92,7 +104,7 @@ void startMenuWindow() {
 	static uint32_t flags = GUI_VISIBLE | GUI_ENABLED | GUI_BACKGROUND | GUI_FOREGROUND | GUI_OUTLINE;
 
 	Window(&bounds, "", 0, &flags) {
-		Panel(GridLayout(1, 8)) {
+		Panel(GridLayout(1, 8, 1)) {
 			if (Button("Tests")) {
 				testsWindowFlags |= GUI_VISIBLE;
 				WMBringIDToFront(0);
@@ -113,6 +125,16 @@ void startMenuWindow() {
 				ReadDir(fs, ".", GUI_FS_ALL);
 				WMBringIDToFront(3);
 			}
+			if (Button("Notepad")) {
+				notepadFlags |= GUI_VISIBLE;
+				startMenuVisible = false;
+				WMBringIDToFront(4);
+			}
+			if (Button("Theme")) {
+				themeEditorFlags |= GUI_VISIBLE;
+				startMenuVisible = false;
+				WMBringIDToFront(5);
+			}
 		}
 	}
 }
@@ -121,15 +143,20 @@ void desktopDemoInit() {
 	testsWindowFlags &= ~GUI_VISIBLE;
 	demosWindowFlags &= ~GUI_VISIBLE;
 	calculatorWindowFlags &= ~GUI_VISIBLE;
+	notepadFlags &= ~GUI_VISIBLE;
+	themeEditorFlags &= ~GUI_VISIBLE;
 
 	WMRegister(&testsWindowBounds, &testsWindowFlags, 0);
 	WMRegister(&demosWindowBounds, &demosWindowFlags, 1);
-	WMRegister(&calculatorWindowBounds, &calculatorWindowFlags, 2);	
-	WMRegister(&fs.bounds, &fs.flags, 3);	
+	WMRegister(&calculatorWindowBounds, &calculatorWindowFlags, 2);
+	WMRegister(&fs.bounds, &fs.flags, 3);
+	WMRegister(&notepadBounds, &notepadFlags, 4);
+	WMRegister(&themeEditorBounds, &themeEditorFlags, 5);
 }
 
 void desktopDemo() {
 	GUIContext* gui = GUIGetActiveContext();
+
 	for (uint32_t windowIndex = 0; windowIndex < gui->count; ++windowIndex) {
 		gui->events_enabled = (startMenuVisible ? false : gui->windows[windowIndex].receiveEvents);
 		switch (gui->windows[windowIndex].id) {
@@ -137,6 +164,8 @@ void desktopDemo() {
 		case 1 : demosWindow(&demosWindowBounds, &demosWindowFlags); break;
 		case 2 : calculatorWindow(&calculatorWindowBounds, &calculatorWindowFlags); break;
 		case 3 : FileSelectorWindow(fs); break;
+		case 4 : notepadWindow(); break;
+		case 5 : themeEditorWindow() ; break;
 		}
 	}
 	gui->events_enabled = true;

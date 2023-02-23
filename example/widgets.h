@@ -59,7 +59,7 @@ void TestWidgets() {
 			}
 			}
 			DummyElement(3);
-			
+
 			{
 			static char text[128] = "Text";
 			static int carrot = -1;
@@ -68,7 +68,7 @@ void TestWidgets() {
 			}
 			}
 			DummyElement(4);
-			
+
 			{
 			static float progress = 1.0f;
 			if (progress > 1.0f) {

@@ -8,7 +8,7 @@ void TestSplitPanel() {
 			if (Button("TOP_LEFT")) printf("Pressed TOP_LEFT\n");
 			if (Button("TOP_RIGHT")) printf("Pressed TOP_RIGHT\n");
 		}
-		
+
 		static float vbotproc = 0.5f;
 		SplitPanel(GUI_HORIZONTAL, vbotproc) {
 			if (Button("BOTTOM_LEFT")) printf("Pressed BOTTOM_LEFT\n");
@@ -19,10 +19,10 @@ void TestSplitPanel() {
 
 void TestTabPanel() {
 	static float proc = 0.2f;
-	
+
 	static char text[64] = {};
 	static int carrot = -1;
-	
+
 	static char tabNames[256] = {};
 	static int tab = 0;
 
@@ -46,7 +46,6 @@ void TestTabPanel() {
 		TabPanel(tabNames, tab) {
 		}
 	}
-
 }
 
 void ButtonGrid(int x, int y, int padding = 0) {
@@ -55,7 +54,7 @@ void ButtonGrid(int x, int y, int padding = 0) {
 	for (int index = 0; index < x * y; ++index) {
 		snprintf(text, sizeof(text), "Button %d", index);
 		if (Button(text)) printf("Pressed %s\n", text);
-	}	
+	}
 }
 
 void TestScrollPanel() {
@@ -68,7 +67,7 @@ void TestScrollPanel() {
 		ScrollPanel(700, 700, &sp1OffsetX, &sp1OffsetY) {
 			ButtonGrid(5, 5);
 		}
-#if 1
+#if 0
 		// Nested static width and height
 		static int sp2OffsetX = 0, sp2OffsetY = 0;
 		ScrollPanel(500, 500, &sp2OffsetX, &sp2OffsetY) {
@@ -78,7 +77,7 @@ void TestScrollPanel() {
 			}
 		}
 #else
-		DummyElement(1);
+		Label("Nested scroll panels are broken");
 #endif
 		// Static width & dynamic height
 		static int sp4OffsetX = 0;

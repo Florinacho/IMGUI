@@ -1,24 +1,8 @@
 #include <imgui.h>
 
-void TestAbsoluteLayout1() {
+void TestAbsoluteLayout() {
 	Panel(AbsoluteLayout()) {
 		if (Button("Test", GUI_FLAGS_BUTTON, {200, 200, 400, 400})) printf("Pressed Test\n");
-	}
-}
-
-void TestAbsoluteLayout2() {
-	Panel(AbsoluteLayout()) {
-		if (Button("Test", GUI_FLAGS_BUTTON, {})) printf("Pressed Test\n");
-	}
-}
-
-void TestAbsoluteLayout() {
-	static int tab = 0;
-	TabPanel("Bounds,No Bounds", tab) {
-		switch (tab) {
-		case 0 : TestAbsoluteLayout1(); break;
-		case 1 : TestAbsoluteLayout2(); break;
-		}
 	}
 }
 
@@ -59,16 +43,16 @@ void TestBorderLayout() {
 	const float SOUTH_PROC = 0.33f;
 	const float WEST_PROC = 0.33f;
 	const float EAST_PROC = 0.33f;
-	
+
 	Panel(BorderLayout(GUI_VERTICAL, NORD_PROC, SOUTH_PROC, ZERO_PADDING)) {
 		if (Button("NORD")) printf("Pressed NORD\n");
-		
+
 		Panel(BorderLayout(GUI_HORIZONTAL, WEST_PROC, EAST_PROC, ZERO_PADDING)) {
 			if (Button("WEST")) printf("Pressed WEST\n");
 			if (Button("CENTER")) printf("Pressed CENTER\n");
 			if (Button("EAST")) printf("Pressed EAST\n");
 		}
-		
+
 		if (Button("SOUTH")) printf("Pressed SOUTH\n");
 	}
 }
@@ -79,7 +63,7 @@ void TestGridLayout() {
 	const int CELL_COUNT = COLLUMN_COUNT * ROW_COUNT;
 	const int ZERO_PADDING = 0;
 	char text[16];
-	
+
 	Panel(GridLayout(COLLUMN_COUNT, ROW_COUNT, ZERO_PADDING)) {
 		for (uint32_t index = 0; index < CELL_COUNT; ++index) {
 			snprintf(text, sizeof(text), "%d", index);

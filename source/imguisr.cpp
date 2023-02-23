@@ -6,43 +6,43 @@
 #include <stdio.h>
 #include <algorithm>
 
+const uint32_t BITMAP_WIDTH = 512;
+const uint32_t BITMAP_HEIGHT = 512;
+const uint8_t  FONT_BEGIN = ' ';
+const uint8_t  FONT_END = '~';
+const uint8_t  FONT_LENGTH = FONT_END - FONT_BEGIN;
+
 STBFont* pfont = NULL; // TODO: Clean this junk
 
 void MyDrawLine(GUIContext* context, const ivec2& begin, const ivec2& end, const color_t& color);
 void MyDrawQuad(GUIContext* context, const ivec4& bounds, const color_t& color);
-uint32_t MyDrawChar(GUIContext* context, char c, float pos_x, float pos_y, const color_t& color);
-void MyDrawText(GUIContext* context, const char* text, const ivec4& bounds, const color_t& color, uint32_t flags);
+void MyDrawChar(GUIContext* context, char c, float x, float y, const color_t& color);
 void MyDrawIcon(GUIContext* context, int32_t , const ivec4& bounds, const color_t& color);
-ivec2 MyGetTextSize(GUIContext* guiContext, const char* text, uint32_t length);
+ivec2 MyGetCharSize(GUIContext* guiContext, char c);
+
 int LoadTTFFont(STBFont* font, const char* filename, float size);
 void FreeTTFFont(STBFont* font);
 
 int LoadTTFFont(STBFont* font, const char* filename, float size) {
-	static const uint32_t BITMAP_WIDTH = 512;
-	static const uint32_t BITMAP_HEIGHT = 512;
-	static const uint8_t  FONT_BEGIN = ' ';
-	static const uint8_t  FONT_END = '~';
-	static const uint8_t  FONT_LENGTH = FONT_END - FONT_BEGIN;
-	
 	char fullFilename[64];
 	snprintf(fullFilename, 64, "%s", filename);
-	
+
 	FILE* file = fopen(fullFilename, "rb");
 	if (file == NULL) {
 		return 1;
 	}
-	
+
 	fseek(file, 0, SEEK_END);
 	const uint32_t fileSize = ftell(file); 
 	fseek(file, 0, SEEK_SET);
-	
+
 	uint8_t* ttf_raw_data = new uint8_t[fileSize];
 	if (fread(ttf_raw_data, 1, fileSize, file) != fileSize) {
 		fclose(file);
 		return 1;
 	}
 	fclose(file);
-	
+
 	font->width = BITMAP_WIDTH;
 	font->height = BITMAP_HEIGHT;
 	font->bitmap = new uint8_t[BITMAP_WIDTH * BITMAP_HEIGHT];
@@ -52,9 +52,9 @@ int LoadTTFFont(STBFont* font, const char* filename, float size) {
 	font->size = size;
 	stbtt_BakeFontBitmap(ttf_raw_data, 0, size, font->bitmap, BITMAP_WIDTH, BITMAP_HEIGHT, FONT_BEGIN, FONT_LENGTH, font->glyphs);
 	delete [] ttf_raw_data;
-	
+
 	pfont = font;
-	
+
 	return 0;
 }
 
@@ -67,10 +67,10 @@ int SoftGUIInit(SoftGUI* gui, uint32_t width, uint32_t height, void* pixelBuffer
 	GUIContextInit(&gui->context);
 	gui->context.drawLine = MyDrawLine;
 	gui->context.drawQuad = MyDrawQuad;
-	gui->context.drawText = MyDrawText;
+	gui->context.drawChar = MyDrawChar;
 	gui->context.drawIcon = MyDrawIcon;
-	gui->context.getTextSize = MyGetTextSize;
-	
+	gui->context.getCharSize = MyGetCharSize;
+
 	gui->context.opaqueData = pixelBuffer;
 	gui->context.viewport = {0, 0, (int32_t)width, (int32_t)height};
 	gui->context.extents.x = width;
@@ -99,14 +99,14 @@ void MyDrawLine(GUIContext* context, const ivec2& begin, const ivec2& end, const
 
 void MyDrawQuad(GUIContext* context, const ivec4& bounds, const color_t& color) {
 	const uint32_t pixel = color.x << 16 | color.y << 8 | color.z << 0;
-	
+
 	const int32_t begin_x = std::max<int32_t>(bounds.x, 0);
 	const int32_t begin_y = std::max<int32_t>(bounds.y, 0);
 	const int32_t end_x   = std::max(std::min<int32_t>(bounds.z, context->extents.x), 0);
 	const int32_t end_y   = std::max(std::min<int32_t>(bounds.w,  context->extents.y), 0);
 
 	uint32_t* pixels = (uint32_t*)context->opaqueData;
-	
+
 	for (int32_t y = begin_y; y < end_y; ++y) {
 		for (int32_t x = begin_x; x < end_x; ++x) {
 			pixels[y * context->extents.x + x] = pixel;
@@ -114,25 +114,21 @@ void MyDrawQuad(GUIContext* context, const ivec4& bounds, const color_t& color) 
 	}
 }
 
-ivec2 MyGetTextSize(GUIContext* guiContext, const char* text, uint32_t length) {
-	static const uint8_t FONT_BEGIN = 32;
-	static const uint8_t FONT_END = 128;
-	float x = 0.0f;
-	float y = 16.0f; // TODO: Calculate this
-	for (uint32_t index = 0; index < length; ++index) {
-		if (text[index] >= FONT_BEGIN && text[index] < FONT_END) {
-			const stbtt_bakedchar *b = pfont->glyphs + text[index] - FONT_BEGIN;
-			x = floor(x + b->xadvance + 0.5f);
-		}
+ivec2 MyGetCharSize(GUIContext* guiContext, char c) {
+	ivec2 ans = {0, 0};
+
+	if (c >= FONT_BEGIN && c < FONT_END) {
+		const stbtt_bakedchar *b = pfont->glyphs + c - FONT_BEGIN;
+		ans.x = floor((float)ans.x + b->xadvance + 0.5f);
+		ans.y = 16;
 	}
-	return {(int32_t)(x + 0.0f), (int32_t)(y + 0.0f)};
+
+	return ans;
 }
 
-uint32_t MyDrawChar(GUIContext* context, char c, float pos_x, float pos_y, const color_t& color) {
-	const int32_t FONT_BITMAP_WIDTH = 512;
-
+void MyDrawChar(GUIContext* context, char c, float pos_x, float pos_y, const color_t& color) {
 	if (c < pfont->begin && c >= pfont->end) {
-		return 0;
+		return;
 	}
 
 	const uint32_t pixel = color.w   << 24 | color.x   << 16 | color.y   <<  8 | color.z   <<  0;
@@ -148,7 +144,7 @@ uint32_t MyDrawChar(GUIContext* context, char c, float pos_x, float pos_y, const
 
 	for (int32_t y = 0; y < b->y1 - b->y0; ++y) {
 		for (int32_t x = 0; x < b->x1 - b->x0; ++x) {
-			const uint32_t sourceIndex = (b->y0 + y) * FONT_BITMAP_WIDTH + b->x0 + x;
+			const uint32_t sourceIndex = (b->y0 + y) * BITMAP_WIDTH + b->x0 + x;
 			const int32_t px = pos_x + x + (b->xoff + 0.5f);
 			const int32_t py = pos_y + y + (b->yoff + 0.5f);
 
@@ -156,42 +152,10 @@ uint32_t MyDrawChar(GUIContext* context, char c, float pos_x, float pos_y, const
 			    ((!clip_enabled) && (px >= 0 && px < (int32_t)context->extents.x && py >= 0 && py < (int32_t)context->extents.y))) {
 				const uint32_t destIndex = py * context->extents.x + px;
 				const uint8_t luminance = pfont->bitmap[sourceIndex];
-				const uint32_t mask  = luminance << 24 | luminance << 16 | luminance <<  8 | luminance <<  0;
+				const uint32_t mask = luminance << 24 | luminance << 16 | luminance <<  8 | luminance <<  0;
 				pixels[destIndex] = (pixels[destIndex] & ~mask) | (pixel & mask);
 			}
 		}
-	}
-
-	return b->xadvance;
-}
-
-void MyDrawText(GUIContext* context, const char* text, const ivec4& bounds, const color_t& color, uint32_t flags) {
-	const ivec2 midBounds = {(bounds.z + bounds.x) / 2, (bounds.y + bounds.w) / 2};
-	const ivec2 textSize = context->getTextSize(context, text, strlen(text));
-	const ivec2 halfTextSize = {textSize.x / 2, textSize.y / 2};
-	const ivec2 halfBounds = {(bounds.z - bounds.x) / 2, (bounds.w - bounds.y) / 2};
-
-	const float start_x = ((flags & GUI_ALIGN_CENTER) == GUI_ALIGN_CENTER) ? midBounds.x - std::min(halfTextSize.x, halfBounds.x) : bounds.x;
-	const float start_y = ((flags & GUI_ALIGN_CENTER) == GUI_ALIGN_CENTER) ? midBounds.y - std::min(halfTextSize.y, halfBounds.y) : bounds.y;
-	float pos_x = start_x;
-	float pos_y = start_y;
-	int charWidth = 0;
-
-	pos_y += 13; // WTF ?!
-	while (*text) {
-		switch (*text) {
-		case '\n' :
-			pos_x = start_x;
-			pos_y += 16.0f;
-			break;
-		default :
-			charWidth = MyGetTextSize(context, text, 1).x;
-			if ((pos_x + charWidth <= bounds.z && pos_y <= bounds.w)) { // seems to draw 1 more char 
-				pos_x += MyDrawChar(context, *text, pos_x, pos_y, color);
-			}
-			break;
-		}
-		++text;
 	}
 }
 
@@ -233,7 +197,7 @@ void MyDrawIcon(GUIContext* context, int32_t id, const ivec4& bounds, const colo
 		0,0,0,0,0,0,0,0,0,1,1,0,0,0,0,
 		0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
 		0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
-		
+
 		// GUI_ICON_ARROW_RIGHT
 		0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
 		0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
@@ -250,7 +214,7 @@ void MyDrawIcon(GUIContext* context, int32_t id, const ivec4& bounds, const colo
 		0,0,0,0,1,1,0,0,0,0,0,0,0,0,0,
 		0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
 		0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
-		
+
 		// GUI_ICON_ARROW_DOWN
 		0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
 		0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
@@ -267,7 +231,7 @@ void MyDrawIcon(GUIContext* context, int32_t id, const ivec4& bounds, const colo
 		0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
 		0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
 		0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
-		
+
 		// GUI_ICON_ARROW_UP
 		0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
 		0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
@@ -284,7 +248,7 @@ void MyDrawIcon(GUIContext* context, int32_t id, const ivec4& bounds, const colo
 		0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
 		0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
 		0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
-		
+
 		// GUI_ICON_SIZE
 		0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
 		0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
@@ -301,7 +265,7 @@ void MyDrawIcon(GUIContext* context, int32_t id, const ivec4& bounds, const colo
 		0,0,0,1,1,0,0,1,1,0,0,1,1,0,0,
 		0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
 		0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
-		
+
 		// GUI_ICON_CHECK
 		0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
 		0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
@@ -318,7 +282,7 @@ void MyDrawIcon(GUIContext* context, int32_t id, const ivec4& bounds, const colo
 		0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
 		0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
 		0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
-		
+
 		// GUI_ICON_PLAY
 		0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
 		0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
@@ -335,7 +299,7 @@ void MyDrawIcon(GUIContext* context, int32_t id, const ivec4& bounds, const colo
 		0,0,0,0,1,1,0,0,0,0,0,0,0,0,0,
 		0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
 		0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
-		
+
 		// GUI_ICON_PAUSE
 		0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
 		0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
@@ -352,7 +316,7 @@ void MyDrawIcon(GUIContext* context, int32_t id, const ivec4& bounds, const colo
 		0,0,0,0,1,1,0,0,0,1,1,0,0,0,0,
 		0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
 		0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
-		
+
 		// GUI_ICON_STOP
 		0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
 		0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
@@ -369,7 +333,7 @@ void MyDrawIcon(GUIContext* context, int32_t id, const ivec4& bounds, const colo
 		0,0,1,1,1,1,1,1,1,1,1,1,1,0,0,
 		0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
 		0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
-		
+
 		// GUI_ICON_LOOP
 		0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
 		0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
@@ -386,7 +350,7 @@ void MyDrawIcon(GUIContext* context, int32_t id, const ivec4& bounds, const colo
 		0,0,0,0,0,0,1,1,1,0,0,0,0,0,0,
 		0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
 		0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
-		
+
 		// GUI_ICON_FILE
 		0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
 		0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
@@ -403,7 +367,7 @@ void MyDrawIcon(GUIContext* context, int32_t id, const ivec4& bounds, const colo
 		0,0,0,1,1,1,1,1,1,1,1,1,0,0,0,
 		0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
 		0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
-		
+
 		// GUI_ICON_FODLER
 		0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
 		0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
@@ -424,17 +388,17 @@ void MyDrawIcon(GUIContext* context, int32_t id, const ivec4& bounds, const colo
 	const uint32_t pixel = color.x << 16 | color.y << 8 | color.z << 0;
 	const int32_t length = std::min(bounds.z - bounds.x, bounds.w - bounds.y);
 	const ivec2 boundsMiddle = {(bounds.z - bounds.x) / 2, (bounds.w - bounds.y) / 2};
-	
+
 	uint32_t* pixels = (uint32_t*)context->opaqueData;
-	
+
 	if (length < ICON_LENGTH) {
 		return;
 	}
-	
+
 	if (id < 0 || id > (int)(sizeof(ICONS) / (ICON_LENGTH * ICON_LENGTH))) {
 		return;
 	}
-	
+
 	for (int32_t y = 0; y < ICON_LENGTH; ++y) {
 		for (int32_t x = 0; x < ICON_LENGTH; ++x) {
 			const uint8_t value = ICONS[id * ICON_SIZE + y * ICON_LENGTH + x];

@@ -1,3 +1,6 @@
+#ifndef __DEMO_FILE_SELECTOR_H__
+#define __DEMO_FILE_SELECTOR_H__
+
 #include <imgui.h>
 
 #include <stdio.h>
@@ -38,7 +41,7 @@ float GetWidthProc(int size) {
 int ReadDir(FileSelectorContext& fileSelector, const char* path, uint32_t flags = GUI_FS_ALL) {
 	int ans = 0;
 	uint32_t offset = 0;
-	
+
 	fileSelector.cache[0] = 0;
 	fileSelector.filter_name[0] = 0;
 	fileSelector.filter_type = flags;
@@ -46,7 +49,7 @@ int ReadDir(FileSelectorContext& fileSelector, const char* path, uint32_t flags 
 	fileSelector.count = 0;
 	fileSelector.filtering = false;
 	fileSelector.flags |= GUI_VISIBLE;
-	
+
 	if (realpath(path, fileSelector.path) == nullptr){
 		return -1;
 	}
@@ -107,7 +110,7 @@ int FileSelectorPanel(FileSelectorContext& fileSelector) {
 
 	Panel(BorderLayout(GUI_VERTICAL, lineProc, 2.0f * lineProc, 0)) {
 		// Header panel
-		Panel(SplitLayout(GUI_VERTICAL, GetWidthProc(lineHeight), 0)) {
+		Panel(SplitLayout(GUI_HORIZONTAL, GetWidthProc(lineHeight), 0)) {
 			if (Button(GUI_ICON_ARROW_UP)) {
 				strncat(fileSelector.path, "/..", 255 - strlen(fileSelector.path));
 				ReadDir(fileSelector, fileSelector.path);
@@ -144,7 +147,8 @@ int FileSelectorPanel(FileSelectorContext& fileSelector) {
 				if (Button(dir? GUI_ICON_FOLDER : GUI_ICON_FILE, &fileSelector.cache[offset], buttonFlags)) {
 					if (dir) {
 						fileSelector.filter_name[0] = 0;
-						sprintf(fileSelector.path, "%s/%s", fileSelector.path, &fileSelector.cache[offset]);
+						strcpy(fileSelector.path, "/");
+						strcpy(fileSelector.path, &fileSelector.cache[offset]);
 						ReadDir(fileSelector, fileSelector.path);
 						break;
 					} else {
@@ -174,7 +178,8 @@ LB_NEXT_ENTRY:
 					ans = FS_CLOSED;
 				}
 				if (Button("Select") && fileSelector.filter_name[0]) {
-					sprintf(fileSelector.path, "%s/%s", fileSelector.path, fileSelector.filter_name);
+					strcpy(fileSelector.path, "/");
+					strcpy(fileSelector.path, "fileSelector.filter_name");
 					ReadDir(fileSelector, fileSelector.path);
 					ans = FS_SELECTED_FILE;
 				}
@@ -197,6 +202,8 @@ int FileSelectorWindow(FileSelectorContext& fileSelector) {
 			break;
 		}
 	}
-	
+
 	return ans;
 }
+
+#endif // __DEMO_FILE_SELECTOR_H__

@@ -1,7 +1,6 @@
 #ifndef __RENDERER_H__
 #define __RENDERER_H__
 
-//#define IMGUI_INCLUDE_WINDOW_MANAGER
 #include "imgui.h"
 #include "stb_truetype.h"
 
@@ -11,6 +10,10 @@
 #define GUI_ICON_REFRESH      (GUI_ICON_CUSTOM + 3)
 #define GUI_ICON_FILE         (GUI_ICON_CUSTOM + 4)
 #define GUI_ICON_FOLDER       (GUI_ICON_CUSTOM + 5)
+#define GUI_ICON_ALIGN_LEFT   (GUI_ICON_CUSTOM + 6)
+#define GUI_ICON_ALIGN_RIGHT  (GUI_ICON_CUSTOM + 7)
+#define GUI_ICON_ALIGN_UP     (GUI_ICON_CUSTOM + 8)
+#define GUI_ICON_ALIGN_DOWN   (GUI_ICON_CUSTOM + 9)
 
 typedef struct {
 	uint8_t* bitmap;         // Bitmap data as a grayscale image
