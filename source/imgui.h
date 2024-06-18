@@ -1,4 +1,13 @@
 /*
+TODO:
+	- remove 'bounds' parameter
+	- implement new absolute coord solution?
+	- remove custom vector structs?
+	- split logic / draw ?
+
+=======================================================
+
+
 Implemented elements:
   - Label: text, icon
   - Button: text, icon, text&icon
@@ -186,8 +195,11 @@ typedef struct {
 	uint8_t x, y, z, w;
 } color_t;
 
-typedef struct {
+typedef struct IVEC4 {
 	int32_t x, y, z, w;
+	bool operator != (const struct IVEC4& other) const {
+		return (x != other.x || y != other.y || z != other.z || w == other.w);
+	}
 } ivec4;
 
 typedef struct Layout {
@@ -272,7 +284,7 @@ typedef struct GUIContext {
 
 	ivec4 viewport;
 	ivec4 clip;
-	ivec2 extents;
+	ivec2 extents; // used by drawing as stride
 #if defined IMGUI_INCLUDE_WINDOW_MANAGER
 	static const uint32_t MAX_WINDOW_COUNT = 8;
 
@@ -332,62 +344,56 @@ void SetLayout(const Layout& layout);
 
 Layout* GetLayout();
 
-ivec4 LayoutGetAbsoluteBounds(const ivec4& bounds = {}, bool advance = true);
+ivec4 LayoutGetAbsoluteBounds(bool advance = true);
 
 
 void DummyElement(uint32_t count = 1);
 
-void Label(const char*, uint32_t = GUI_FLAGS_LABEL, const ivec4& = {});
+void Label(const char* text, uint32_t flags = GUI_FLAGS_LABEL);
 
-void Label(int32_t, uint32_t = GUI_FLAGS_LABEL, const ivec4& = {});
+void Label(int32_t iconID, uint32_t flags = GUI_FLAGS_LABEL);
 
-bool Button(const char*, uint32_t = GUI_FLAGS_BUTTON, const ivec4& = {});
+bool Button(const char* text, uint32_t flags = GUI_FLAGS_BUTTON);
 
-bool Button(int32_t, uint32_t = GUI_FLAGS_BUTTON, const ivec4& = {});
+bool Button(int32_t iconID, uint32_t flags = GUI_FLAGS_BUTTON);
 
-bool Button(int32_t, uint32_t*, const ivec4& = {});
+bool Button(int32_t iconID, uint32_t* flags);
 
-bool Button(int32_t, const char*, uint32_t = GUI_FLAGS_BUTTON, const ivec4& = {});
+bool Button(int32_t inconID, const char* text, uint32_t flags = GUI_FLAGS_BUTTON);
 
-bool CheckBox(bool&, uint32_t = GUI_FLAGS_CHECKBOX, const ivec4& = {});
+bool CheckBox(bool& state, uint32_t flags = GUI_FLAGS_CHECKBOX);
 
-bool Toggle(bool&, uint32_t = GUI_FLAGS_CHECKBOX, const ivec4& = {});
+bool Toggle(bool& state, uint32_t flags = GUI_FLAGS_CHECKBOX);
 
-bool Spinner(int&, uint32_t = GUI_FLAGS_SPINNER, const ivec4& = {});
+bool Spinner(int& value, uint32_t flags = GUI_FLAGS_SPINNER);
 
-bool Spinner(int&, const char**, uint32_t, uint32_t = GUI_FLAGS_SPINNER, const ivec4& = {});
+bool Spinner(int& value, const char** textValues, uint32_t textCount, uint32_t flags = GUI_FLAGS_SPINNER);
 
-void ProgressBar(float, uint32_t = GUI_FLAGS_PROGRESSBAR, const ivec4& = {});
+void ProgressBar(float progress, uint32_t flags = GUI_FLAGS_PROGRESSBAR);
 
-bool Slider(float&, uint32_t = GUI_FLAGS_SLIDER, const ivec4& = {});
+bool Slider(float& value, uint32_t flags = GUI_FLAGS_SLIDER);
 
-bool Slider(float&, uint32_t boxLength, GUIOrientation orientation, uint32_t = GUI_FLAGS_SLIDER, const ivec4& = {});
+bool Slider(float& value, uint32_t boxLength, GUIOrientation orientation, uint32_t flags = GUI_FLAGS_SLIDER);
 
-bool RangeSlider(float&, float&, GUIOrientation = GUI_VERTICAL, uint32_t = GUI_FLAGS_SLIDER, const ivec4& = {});
+bool RangeSlider(float& minValue, float& maxValue, GUIOrientation = GUI_VERTICAL, uint32_t flags = GUI_FLAGS_SLIDER);
 
-bool TextBox(char*, uint32_t, int32_t&, uint32_t = GUI_FLAGS_TEXTBOX, uint32_t padding = 3, const ivec4& = {});
+bool TextBox(char* text, uint32_t textLength, int32_t& carrot, uint32_t flags = GUI_FLAGS_TEXTBOX, uint32_t padding = 3);
 
-bool TextArea(char*, uint32_t, int32_t&, uint32_t = GUI_FLAGS_TEXTBOX, uint32_t padding = 2, const ivec4& = {});
+bool TextArea(char*, uint32_t, int32_t&, uint32_t = GUI_FLAGS_TEXTBOX, uint32_t padding = 2);
 
-bool Scrollbar(float& proc, float barProc = 0.1f, GUIOrientation orientation = GUI_VERTICAL, float step = 0.1f, const ivec4& bounds = {});
-#if 0
-int Grid(uint32_t row, uint32_t collumn, bool square = true, uint32_t flags = GUI_VISIBLE | GUI_ENABLED | GUI_BACKGROUND | GUI_OUTLINE, const ivec4& = {});
+bool Scrollbar(float& progress, float barProc = 0.1f, GUIOrientation orientation = GUI_VERTICAL, float step = 0.1f);
 
-int Canvas(uint32_t row, uint32_t collumn, const ivec4* palette, const uint8_t* pattern, uint32_t flags = GUI_VISIBLE | GUI_ENABLED | GUI_OUTLINE | GUI_BACKGROUND, const ivec4& = {});
+Layout BeginWindow(ivec4* bounds, const char* title = nullptr, uint32_t padding = 0, uint32_t* flags = nullptr);
 
-bool Palette(ivec4& value, uint32_t flags = GUI_ENABLED | GUI_VISIBLE | GUI_OUTLINE | GUI_BACKGROUND, const ivec4& bounds = {});
-#endif
-Layout BeginWindow(ivec4*, const char* = nullptr, uint32_t padding = 0, uint32_t* flags = nullptr);
+Layout BeginPanel(const Layout& layout = AbsoluteLayout(), uint32_t padding = 0, uint32_t flags = GUI_FLAGS_PANEL);
 
-Layout BeginPanel(const Layout& = AbsoluteLayout(), uint32_t padding = 0, uint32_t flags = GUI_FLAGS_PANEL, const ivec4& = {});
+Layout BeginSplitPanel(GUIOrientation orientation, float& , uint32_t padding = 0, uint32_t flags = GUI_FLAGS_PANEL);
 
-Layout BeginSplitPanel(GUIOrientation orientation, float&, uint32_t padding = 0, uint32_t flags = GUI_FLAGS_PANEL, const ivec4& = ivec4());
+Layout BeginTabPanel(const char* names, int& selectedTab, uint32_t padding = 0, uint32_t flags = 0);
 
-Layout BeginTabPanel(const char* names, int&, uint32_t padding = 0, uint32_t flags = 0, const ivec4& = ivec4());
+Layout BeginScrollPanel(int, int, int* = nullptr, int* = nullptr, uint32_t padding = 0, uint32_t flags = 0);
 
-Layout BeginScrollPanel(int, int, int* = nullptr, int* = nullptr, uint32_t padding = 0, uint32_t flags = 0, const ivec4& = {});
-
-void EndPanel(Layout*);
+void EndPanel(Layout* backup);
 
 #define GUIFrame(...)  for(int32_t ___tmp = GUIBeginFrame(__VA_ARGS__); !___tmp; (___tmp += 1), GUIEndFrame())
 

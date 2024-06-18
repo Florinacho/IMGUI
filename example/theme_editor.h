@@ -7,7 +7,7 @@
 void colorEntry(const char* label, color_t& color) {	
 	auto u8Slider = [](uint8_t& value) {
 		GUIContext* gui = GUIGetActiveContext();
-		const ivec4 bounds = LayoutGetAbsoluteBounds({}, false);
+		const ivec4 bounds = LayoutGetAbsoluteBounds(false);
 		bool ans = false;
 		char tmp[4];
 		

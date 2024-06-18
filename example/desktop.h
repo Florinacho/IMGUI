@@ -8,6 +8,7 @@
 #include "calculator.h"
 #include "file_selector.h"
 #include "text_editor.h"
+#include "mediaplayer.h"
 #include "theme_editor.h"
 
 FileSelectorContext fs = {
@@ -56,9 +57,10 @@ void demosWindow(ivec4* bounds, uint32_t* flags) {
 bool taskbarWindow() {
 	static ivec4 bounds = {0, 690, 1024, 720};
 	static uint32_t flags = GUI_VISIBLE | GUI_ENABLED | GUI_BACKGROUND | GUI_FOREGROUND | GUI_OUTLINE;
+	static uint32_t rawTime = 0;
 
 	Window(&bounds, "", 0, &flags) {
-		SetLayout(FixSplitLayout(GUI_HORIZONTAL, 100));
+		SetLayout(BorderLayout(GUI_HORIZONTAL, 0.15f, 0.09f));
 		if (Button("Apps")) {
 			startMenuVisible = !startMenuVisible;
 		}
@@ -88,11 +90,26 @@ bool taskbarWindow() {
 					WMBringIDToFront(4);
 				}
 			}
-			if (themeEditorFlags & GUI_VISIBLE) {
-				if (Button("Theme")) {
+			if (mediaPlayerFlags & GUI_VISIBLE) {
+				if (Button("Video Player")) {
 					WMBringIDToFront(5);
 				}
 			}
+			if (themeEditorFlags & GUI_VISIBLE) {
+				if (Button("Theme")) {
+					WMBringIDToFront(6);
+				}
+			}
+		}
+		{
+		rawTime += 1;
+		char timeText[32];
+		uint32_t time = rawTime / 1000;
+		uint32_t seconds = time % 60;
+		uint32_t minutes = (time / 60) % 60;
+		uint32_t hours = (time / 3600) % 24;
+		snprintf(timeText, sizeof(timeText), "%.2d:%.2d:%.2d", hours, minutes, seconds);
+		Label(timeText);
 		}
 	}
 
@@ -104,36 +121,51 @@ void startMenuWindow() {
 	static uint32_t flags = GUI_VISIBLE | GUI_ENABLED | GUI_BACKGROUND | GUI_FOREGROUND | GUI_OUTLINE;
 
 	Window(&bounds, "", 0, &flags) {
-		Panel(GridLayout(1, 8, 1)) {
-			if (Button("Tests")) {
-				testsWindowFlags |= GUI_VISIBLE;
-				WMBringIDToFront(0);
-				startMenuVisible = false;
+		Panel(FixSplitLayout(GUI_VERTICAL, -30, 0, 0)) {
+			static int offset = 0;
+			ScrollPanel(0, 700, NULL, &offset, 0) {
+				Panel(GridLayout(1, 16, 1)) {
+					if (Button("Tests")) {
+						testsWindowFlags |= GUI_VISIBLE;
+						WMBringIDToFront(0);
+						startMenuVisible = false;
+					}
+					if (Button("Demos")) {
+						demosWindowFlags |= GUI_VISIBLE;
+						WMBringIDToFront(1);
+						startMenuVisible = false;
+					}
+					if (Button("Calculator")) {
+						calculatorWindowFlags |= GUI_VISIBLE;
+						WMBringIDToFront(2);
+						startMenuVisible = false;
+					}
+					if (Button("File selector")) {
+						startMenuVisible = false;
+						ReadDir(fs, ".", GUI_FS_ALL);
+						WMBringIDToFront(3);
+					}
+					if (Button("Notepad")) {
+						notepadFlags |= GUI_VISIBLE;
+						startMenuVisible = false;
+						WMBringIDToFront(4);
+					}
+					if (Button("Video Player")) {
+						mediaPlayerFlags |= GUI_VISIBLE;
+						startMenuVisible = false;
+						WMBringIDToFront(5);
+					}
+					if (Button("Theme")) {
+						themeEditorFlags |= GUI_VISIBLE;
+						startMenuVisible = false;
+						WMBringIDToFront(6);
+					}
+				}
 			}
-			if (Button("Demos")) {
-				demosWindowFlags |= GUI_VISIBLE;
-				WMBringIDToFront(1);
-				startMenuVisible = false;
-			}
-			if (Button("Calculator")) {
-				calculatorWindowFlags |= GUI_VISIBLE;
-				WMBringIDToFront(2);
-				startMenuVisible = false;
-			}
-			if (Button("File selector")) {
-				startMenuVisible = false;
-				ReadDir(fs, ".", GUI_FS_ALL);
-				WMBringIDToFront(3);
-			}
-			if (Button("Notepad")) {
-				notepadFlags |= GUI_VISIBLE;
-				startMenuVisible = false;
-				WMBringIDToFront(4);
-			}
-			if (Button("Theme")) {
-				themeEditorFlags |= GUI_VISIBLE;
-				startMenuVisible = false;
-				WMBringIDToFront(5);
+			Panel(GridLayout(3, 1)) {
+				Button("Logoff");
+				Button("Restart");
+				Button("Logout");
 			}
 		}
 	}
@@ -144,6 +176,7 @@ void desktopDemoInit() {
 	demosWindowFlags &= ~GUI_VISIBLE;
 	calculatorWindowFlags &= ~GUI_VISIBLE;
 	notepadFlags &= ~GUI_VISIBLE;
+	mediaPlayerFlags &= ~GUI_VISIBLE;
 	themeEditorFlags &= ~GUI_VISIBLE;
 
 	WMRegister(&testsWindowBounds, &testsWindowFlags, 0);
@@ -151,7 +184,8 @@ void desktopDemoInit() {
 	WMRegister(&calculatorWindowBounds, &calculatorWindowFlags, 2);
 	WMRegister(&fs.bounds, &fs.flags, 3);
 	WMRegister(&notepadBounds, &notepadFlags, 4);
-	WMRegister(&themeEditorBounds, &themeEditorFlags, 5);
+	WMRegister(&mediaPlayerBounds, &mediaPlayerFlags, 5);
+	WMRegister(&themeEditorBounds, &themeEditorFlags, 6);
 }
 
 void desktopDemo() {
@@ -165,7 +199,8 @@ void desktopDemo() {
 		case 2 : calculatorWindow(&calculatorWindowBounds, &calculatorWindowFlags); break;
 		case 3 : FileSelectorWindow(fs); break;
 		case 4 : notepadWindow(); break;
-		case 5 : themeEditorWindow() ; break;
+		case 5 : mediaPlayerWindow(); break;
+		case 6 : themeEditorWindow() ; break;
 		}
 	}
 	gui->events_enabled = true;

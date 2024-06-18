@@ -1,11 +1,5 @@
 #include <imgui.h>
 
-void TestAbsoluteLayout() {
-	Panel(AbsoluteLayout()) {
-		if (Button("Test", GUI_FLAGS_BUTTON, {200, 200, 400, 400})) printf("Pressed Test\n");
-	}
-}
-
 void TestSplitLayout() {
 	Panel(SplitLayout(GUI_VERTICAL, 0.5f)) {
 		Panel(SplitLayout(GUI_HORIZONTAL, 0.5f)) {
@@ -39,10 +33,10 @@ void TestFixSplitLayout() {
 
 void TestBorderLayout() {
 	const int ZERO_PADDING = 0;
-	const float NORD_PROC = 0.33f;
-	const float SOUTH_PROC = 0.33f;
-	const float WEST_PROC = 0.33f;
-	const float EAST_PROC = 0.33f;
+	const float NORD_PROC = 0.25f;
+	const float SOUTH_PROC = 0.25f;
+	const float WEST_PROC = 0.25f;
+	const float EAST_PROC = 0.25f;
 
 	Panel(BorderLayout(GUI_VERTICAL, NORD_PROC, SOUTH_PROC, ZERO_PADDING)) {
 		if (Button("NORD")) printf("Pressed NORD\n");
@@ -74,13 +68,12 @@ void TestGridLayout() {
 
 void TestLayouts() {
 	static int tab = 0;
-	TabPanel("Absolute,Split,FixedSplit,Border,Grid", tab) {
+	TabPanel("Split,FixedSplit,Border,Grid", tab) {
 		switch (tab) {
-		case 0 : TestAbsoluteLayout();  break;
-		case 1 : TestSplitLayout();     break;
-		case 2 : TestFixSplitLayout();  break;
-		case 3 : TestBorderLayout();    break;
-		case 4 : TestGridLayout();      break;
+		case 0 : TestSplitLayout();     break;
+		case 1 : TestFixSplitLayout();  break;
+		case 2 : TestBorderLayout();    break;
+		case 3 : TestGridLayout();      break;
 		}
 	}
 }

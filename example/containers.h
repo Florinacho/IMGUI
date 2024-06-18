@@ -61,8 +61,9 @@ void TestScrollPanel() {
 	const int COLLUMN_COUNT = 2;
 	const int ROW_COUNT = 2;
 	const int PADDING = 5;
+
 	Panel(GridLayout(COLLUMN_COUNT, ROW_COUNT, PADDING)) {
-		// Static with and height
+		// Dynamic width and height
 		static int sp1OffsetX = 0, sp1OffsetY = 0;
 		ScrollPanel(700, 700, &sp1OffsetX, &sp1OffsetY) {
 			ButtonGrid(5, 5);
@@ -79,10 +80,10 @@ void TestScrollPanel() {
 #else
 		Label("Nested scroll panels are broken");
 #endif
-		// Static width & dynamic height
+		// Static width & dynamic width
 		static int sp4OffsetX = 0;
 		ScrollPanel(700, 0, &sp4OffsetX, nullptr) {
-			ButtonGrid(5, 3);
+			ButtonGrid(6, 1);
 		}
 
 		// Dynamic width and static height

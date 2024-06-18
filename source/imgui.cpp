@@ -497,20 +497,15 @@ void GUIEndFrame() {
 	context->keyEventCount = 0;
 }
 
-ivec4 LayoutGetBounds(const ivec4& bounds, bool advance) {
+ivec4 LayoutGetBounds(bool advance) {
 	ivec4 ans;
 
 	switch (context->layout.type) {
 	case GUI_LAYOUT_ABSOLUTE :
-		if ((bounds.w - bounds.y + bounds.z - bounds.x) != 0) {
-			//assert(false);
-			ans = bounds;
-		} else {
-			ans.x = 0;
-			ans.y = 0;
-			ans.z = context->viewport.z - context->viewport.x;
-			ans.w = context->viewport.w - context->viewport.y;
-		}
+		ans.x = 0;
+		ans.y = 0;
+		ans.z = context->viewport.z - context->viewport.x;
+		ans.w = context->viewport.w - context->viewport.y;
 		break;
 	case GUI_LAYOUT_SPLIT :
 		{
@@ -520,61 +515,58 @@ ivec4 LayoutGetBounds(const ivec4& bounds, bool advance) {
 		switch (context->layout.split.orientation) {
 		case GUI_VERTICAL :
 			{
-			const int32_t topCellHeight = (height - context->layout.split.separator) * context->layout.split.weight;
-			const int32_t botCellHeight = height - context->layout.split.separator - topCellHeight;
+			const int32_t topHeight = (float)(height - context->layout.split.separator) * context->layout.split.weight + 0.5f;
+			const int32_t botHeight = height - context->layout.split.separator - topHeight;
 			ans.x = 0;
-			ans.y =                 (topCellHeight + context->layout.split.separator) * index;
+			ans.y =             (topHeight + context->layout.split.separator) * index;
 			ans.z = width;
-			ans.w = topCellHeight + (context->layout.split.separator + botCellHeight) * index;
+			ans.w = topHeight + (context->layout.split.separator + botHeight) * index;
 			}
 			break;
 		case GUI_HORIZONTAL :
 			{
-			const int32_t topCellWidth = (width - context->layout.split.separator) * context->layout.split.weight;
-			const int32_t botCellWidth =  width - context->layout.split.separator - topCellWidth;
-			ans.x =                (topCellWidth + context->layout.split.separator) * index;
+			const int32_t leftWidth  = (float)(width - context->layout.split.separator) * context->layout.split.weight + 0.5f;
+			const int32_t rightWidth =  width - context->layout.split.separator - leftWidth;
+			ans.x =             (leftWidth + context->layout.split.separator) * index;
 			ans.y = 0;
-			ans.z = topCellWidth + (botCellWidth + context->layout.split.separator) * index;
+			ans.z = leftWidth + (rightWidth + context->layout.split.separator) * index;
 			ans.w = height;
 			} 
 			break;
 		}
-		if (ans.w < ans.y) {
-			ans.w = ans.y;
-		}
-		{ // TMP: clamp max Y size
-			const int32_t midX = (ans.x + ans.z) / 2;
-			const int32_t midY = (ans.w + ans.y) / 2;
-			int32_t width  = std::min<int>(ans.z - ans.x, context->layout.max.x);
-			int32_t height = std::min<int>(ans.w - ans.y, context->layout.max.y);
-			ans.x = midX - width / 2;
-			ans.y = midY - height / 2;
-			ans.z = midX + width / 2;
-			ans.w = midY + height / 2;
+		{
+			const float midX = (float)(ans.x + ans.z) / 2.0f;
+			const float midY = (ans.w + ans.y) / 2;
+			const float width  = std::min<float>((ans.z - ans.x) / 2.0f + 0.5f, context->layout.max.x / 2);
+			const float height = std::min<float>((ans.w - ans.y) / 2.0f + 0.5f, context->layout.max.y / 2);
+			ans.x = midX - width;
+			ans.y = midY - height;
+			ans.z = midX + width;
+			ans.w = midY + height;
 		}
 		}
 		break;
 	case GUI_LAYOUT_BORDER :
 		{
-		const int32_t width  = context->viewport.z - context->viewport.x;
-		const int32_t height = context->viewport.w - context->viewport.y;
+		const float width  = context->viewport.z - context->viewport.x;
+		const float height = context->viewport.w - context->viewport.y;
 		const int vertical = (context->layout.border.orientation == GUI_VERTICAL);
 		switch(context->layout.elementIndex % 3) {
 		case 0 : // header
 			ans.x = 0;
 			ans.y = 0;
-			ans.z = vertical ? width : ((float)width * context->layout.border.header);
-			ans.w = vertical ? ((float)height * context->layout.border.header) : height;
+			ans.z = vertical ? width : ((float)width * context->layout.border.header + 0.5f);
+			ans.w = vertical ? ((float)height * context->layout.border.header + 0.5f) : height;
 			break;
 		case 1 : // body
-			ans.x = vertical ? 0 : ((float)width * context->layout.border.header);
-			ans.y = vertical ? ((float)height * context->layout.border.header) : 0;
-			ans.z = vertical ? width : ans.x + ((float)width * context->layout.border.body);
-			ans.w = vertical ? ans.y + ((float)height * context->layout.border.body) : height;
+			ans.x = vertical ? 0 : ((float)width * context->layout.border.header + 0.5f);
+			ans.y = vertical ? ((float)height * context->layout.border.header + 0.5f) : 0;
+			ans.z = vertical ? width : ans.x + ((float)width * context->layout.border.body + 0.5f);
+			ans.w = vertical ? ans.y + ((float)height * context->layout.border.body + 0.5f) : height;
 			break;
 		case 2 : // footer
-			ans.x = vertical ? 0 : width - ((float)width * context->layout.border.footer);
-			ans.y = vertical ? height - ((float)height * context->layout.border.footer) : 0;
+			ans.x = vertical ? 0 : width - ((float)width * context->layout.border.footer + 0.5f);
+			ans.y = vertical ? height - ((float)height * context->layout.border.footer + 0.5f) : 0;
 			ans.z = width;
 			ans.w = height;
 			break;
@@ -600,14 +592,14 @@ ivec4 LayoutGetBounds(const ivec4& bounds, bool advance) {
 		ans.z = (indexX + 1) * context->layout.grid.cellSize.x,
 		ans.w = (indexY + 1) * context->layout.grid.cellSize.y;
 
-		const int32_t width  = std::min(ans.z - ans.x, (int)context->layout.max.x);
-		const int32_t height = std::min(ans.w - ans.y, (int)context->layout.max.y);
-		const int32_t midX = (ans.z + ans.x) / 2;
-		const int32_t midY = (ans.w + ans.y) / 2;
-		ans.x = midX - width  / 2;
-		ans.y = midY - height / 2;
-		ans.z = midX + width  / 2;
-		ans.w = midY + height / 2;
+		const float width  = std::min(ans.z - ans.x, (int)context->layout.max.x);
+		const float height = std::min(ans.w - ans.y, (int)context->layout.max.y);
+		const float midX = (ans.z + ans.x) / 2;
+		const float midY = (ans.w + ans.y) / 2;
+		ans.x = midX - width  / 2.0f;
+		ans.y = midY - height / 2.0f;
+		ans.z = midX + width  / 2.0f;
+		ans.w = midY + height / 2.0f;
 		}
 		break;
 	default :
@@ -623,8 +615,8 @@ ivec4 LayoutGetBounds(const ivec4& bounds, bool advance) {
 	return ans;
 }
 
-ivec4 LayoutGetAbsoluteBounds(const ivec4& bounds, bool advance) {
-	ivec4 ans = LayoutGetBounds(bounds, advance);
+ivec4 LayoutGetAbsoluteBounds(bool advance) {
+	ivec4 ans = LayoutGetBounds(advance);
 	ans.x += context->viewport.x;
 	ans.y += context->viewport.y;
 	ans.z += context->viewport.x;
@@ -667,9 +659,11 @@ Layout SplitLayout(GUIOrientation orientation, float weight, uint32_t separator,
 }
 
 Layout FixSplitLayout(GUIOrientation orientation, int32_t size, uint32_t separator, uint32_t margin) {
-	const ivec4 bounds = LayoutGetBounds({}, false);
-	const int32_t width = bounds.z - bounds.x;
-	const int32_t height = bounds.w - bounds.y;
+	const ivec4 bounds = LayoutGetBounds(false);
+	const int wh[] = {
+		bounds.z - bounds.x,
+		bounds.w - bounds.y
+	};
 	
 	Layout ans = {};
 	ans.type = GUI_LAYOUT_SPLIT;
@@ -678,14 +672,7 @@ Layout FixSplitLayout(GUIOrientation orientation, int32_t size, uint32_t separat
 	ans.margin = margin;
 	ans.split.orientation = orientation;
 	ans.split.separator = separator;
-	switch (orientation) {
-	case GUI_VERTICAL :
-		ans.split.weight = std::min<float>((float)size / (float)height,  1.0f);
-		break;
-	case GUI_HORIZONTAL :
-		ans.split.weight = std::min<float>((float)size / (float)width, 1.0f);
-		break;
-	}
+	ans.split.weight = std::min<float>((float)size / (float)(wh[orientation == GUI_VERTICAL]),  1.0f);
 	return ans;
 }
 
@@ -716,8 +703,8 @@ void LabelInternal(uint32_t flags, const ivec4& bounds) {
 	}
 }
 
-void Label(const char* text, uint32_t flags, const ivec4& bounds) {
-	const ivec4 absoluteBounds = LayoutGetAbsoluteBounds(bounds, true);
+void Label(const char* text, uint32_t flags) {
+	const ivec4 absoluteBounds = LayoutGetAbsoluteBounds(true);
 
 	LabelInternal(flags, absoluteBounds);
 	if ((flags & GUI_VISIBLE) && (flags & GUI_FOREGROUND)) {
@@ -725,8 +712,8 @@ void Label(const char* text, uint32_t flags, const ivec4& bounds) {
 	}
 }
 
-void Label(int32_t id, uint32_t flags, const ivec4& bounds) {
-	const ivec4 absoluteBounds = LayoutGetAbsoluteBounds(bounds, true);
+void Label(int32_t id, uint32_t flags) {
+	const ivec4 absoluteBounds = LayoutGetAbsoluteBounds(true);
 
 	LabelInternal(flags, absoluteBounds);
 	if ((flags & GUI_VISIBLE) && (flags & GUI_FOREGROUND)) {
@@ -755,8 +742,8 @@ bool ButtonInternal(uint32_t flags, const ivec4& bounds) {
 	return (focused && !GetMouseLeftButton() && GetLastMouseLeftButton());
 }
 
-bool Button(int32_t icon, const char* text, uint32_t flags, const ivec4& bounds) {
-	const ivec4 absoluteBounds = LayoutGetAbsoluteBounds(bounds, true);
+bool Button(int32_t icon, const char* text, uint32_t flags) {
+	const ivec4 absoluteBounds = LayoutGetAbsoluteBounds(true);
 	bool ans = false;
 
 	if (ButtonInternal(flags, absoluteBounds)) {
@@ -772,90 +759,9 @@ bool Button(int32_t icon, const char* text, uint32_t flags, const ivec4& bounds)
 
 	return ans;
 }
-#if 0
-int Grid(uint32_t row, uint32_t collumn, bool square, uint32_t flags, const ivec4& bounds) {
-	ivec4 absoluteBounds = bounds;//LayoutGetAbsoluteBounds(bounds, true);
 
-	const int32_t width = ((absoluteBounds.z - absoluteBounds.x) / collumn) * collumn;
-	const int32_t height = ((absoluteBounds.w - absoluteBounds.y) / row) * row;
-	int32_t length = ((width < height) ? width : height);
-	
-	if (square) {
-		const int32_t midX = (absoluteBounds.z + absoluteBounds.x) / 2;
-		const int32_t midY = (absoluteBounds.w + absoluteBounds.y) / 2;
-		absoluteBounds.x = midX - length / 2;
-		absoluteBounds.y = midY - length / 2;
-		absoluteBounds.z = midX + length / 2;
-		absoluteBounds.w = midY + length / 2;
-	}
-
-	length = length / row;
-
-	const bool focused = (RECT_CONTAINS_POINT(absoluteBounds, GetMousePosition()) && (flags & GUI_ENABLED));
-	const bool clicked = (focused && GetMouseLeftButton());
-	
-	if (flags & GUI_VISIBLE) {
-		if (flags & GUI_OUTLINE) {
-			GUIDrawBorder(absoluteBounds, context->style.colors[GUI_COLOR_BORDER]);
-
-			for (uint32_t y = 1; y < row; ++y) {
-				int32_t ny = y * length;
-				const ivec2 begin = {absoluteBounds.x, absoluteBounds.y + ny};
-				const ivec2 end = {absoluteBounds.z, absoluteBounds.y + ny};
-				GUIDrawLine(begin, end, context->style.colors[GUI_COLOR_BORDER]);
-			}
-			for (uint32_t x = 1; x < collumn; ++x) {
-				int32_t nx = x * length;
-				const ivec2 begin = {absoluteBounds.x + nx, absoluteBounds.y};
-				const ivec2 end = {absoluteBounds.x + nx, absoluteBounds.w};
-				GUIDrawLine(begin, end, context->style.colors[GUI_COLOR_BORDER]);
-			}
-		}
-	}
-	
-	if (clicked) {
-		const ivec2 pos = GetMousePosition();
-		const int x = (pos.x - absoluteBounds.x) / length;
-		const int y = (pos.y - absoluteBounds.y) / length;
-		return y * collumn + x;
-	}
-	
-	return -1;
-}
-
-int Canvas(uint32_t row, uint32_t collumn, const color_t* palette, const uint8_t* pattern, uint32_t flags, const ivec4& bounds) {
-	ivec4 absoluteBounds = LayoutGetAbsoluteBounds(bounds, true);
-
-	const int32_t width = ((absoluteBounds.z - absoluteBounds.x) / collumn) * collumn;
-	const int32_t height = ((absoluteBounds.w - absoluteBounds.y) / row) * row;
-	int32_t length = ((width < height) ? width : height);
-
-	const int32_t midX = (absoluteBounds.z + absoluteBounds.x) / 2;
-	const int32_t midY = (absoluteBounds.w + absoluteBounds.y) / 2;
-	absoluteBounds.x = midX - length / 2;
-	absoluteBounds.y = midY - length / 2;
-	absoluteBounds.z = midX + length / 2;
-	absoluteBounds.w = midY + length / 2;
-
-	length /= row;
-
-	for (int y = 0; y < (int)row; ++y) {
-		for (int x = 0; x < (int)collumn; ++x) {
-			const int index = y * collumn + x;
-			const ivec4 c = palette[pattern[index]];
-			GUIDrawQuad({absoluteBounds.x + x * length,
-						 absoluteBounds.y + y * length,
-						 absoluteBounds.x + (x + 1) * length, 
-						 absoluteBounds.y + (y + 1) * length}, 
-						 {c.x, c.y, c.z, 255});
-		}
-	}
-	
-	return Grid(row, collumn, false, flags, absoluteBounds);
-}
-#endif
-bool Button(const char* text, uint32_t flags, const ivec4& bounds) {
-	const ivec4 absoluteBounds = LayoutGetAbsoluteBounds(bounds, true);
+bool Button(const char* text, uint32_t flags) {
+	const ivec4 absoluteBounds = LayoutGetAbsoluteBounds(true);
 	const bool ans = ButtonInternal(flags, absoluteBounds);
 
 	if ((flags & GUI_VISIBLE) && (flags & GUI_FOREGROUND)) {
@@ -865,8 +771,8 @@ bool Button(const char* text, uint32_t flags, const ivec4& bounds) {
 	return ans;
 }
 
-bool Button(int32_t icon, uint32_t flags, const ivec4& bounds) {
-	const ivec4 absoluteBounds = LayoutGetAbsoluteBounds(bounds, true);
+bool Button(int32_t icon, uint32_t flags) {
+	const ivec4 absoluteBounds = LayoutGetAbsoluteBounds(true);
 	const bool ans = ButtonInternal(flags, absoluteBounds);
 
 	if ((flags & GUI_VISIBLE) && (flags & GUI_FOREGROUND)) {
@@ -876,8 +782,8 @@ bool Button(int32_t icon, uint32_t flags, const ivec4& bounds) {
 	return ans;
 }
 
-bool Button(int32_t icon, uint32_t* flags, const ivec4& bounds) {
-	const ivec4 absoluteBounds = LayoutGetAbsoluteBounds(bounds, true);
+bool Button(int32_t icon, uint32_t* flags) {
+	const ivec4 absoluteBounds = LayoutGetAbsoluteBounds(true);
 	bool ans = false;
 
 	if (ButtonInternal(*flags, absoluteBounds)) {
@@ -891,9 +797,9 @@ bool Button(int32_t icon, uint32_t* flags, const ivec4& bounds) {
 	return ans;
 }
 
-bool CheckBox(bool &checked, uint32_t flags, const ivec4& nbounds) {
+bool CheckBox(bool &checked, uint32_t flags) {
 	context->layout.max = {22, 22};
-	ivec4 rect = LayoutGetAbsoluteBounds(nbounds, true);
+	ivec4 rect = LayoutGetAbsoluteBounds(true);
 	context->layout.max = {0x1FFFFFFF, 0x1FFFFFFF};
 
 	const bool focused = RECT_CONTAINS_POINT(rect, GetMousePosition());
@@ -920,9 +826,9 @@ bool CheckBox(bool &checked, uint32_t flags, const ivec4& nbounds) {
 	return ans;
 }
 
-bool Toggle(bool &enabled, uint32_t flags, const ivec4& nbounds) {
+bool Toggle(bool &enabled, uint32_t flags) {
 	static const int32_t PADDING = 2;
-	const ivec4 absoluteBounds = LayoutGetAbsoluteBounds(nbounds, true);
+	const ivec4 absoluteBounds = LayoutGetAbsoluteBounds(true);
 	const int32_t halfWidth = (absoluteBounds.z - absoluteBounds.x) / 2;
 	const bool focused = RECT_CONTAINS_POINT(absoluteBounds, GetMousePosition());
 	bool ans = false;
@@ -949,9 +855,9 @@ bool Toggle(bool &enabled, uint32_t flags, const ivec4& nbounds) {
 	return ans;
 }
 
-void ProgressBar(float proc, uint32_t flags, const ivec4& bounds) {
+void ProgressBar(float proc, uint32_t flags) {
 	static const int32_t K = 2;
-	const ivec4 absoluteBounds = LayoutGetAbsoluteBounds(bounds, true);
+	const ivec4 absoluteBounds = LayoutGetAbsoluteBounds(true);
 	const int32_t width = absoluteBounds.z - absoluteBounds.x - K * 1;
 	const int32_t height = absoluteBounds.w - absoluteBounds.y;
 
@@ -1063,16 +969,16 @@ bool SliderInternal(float& proc, float step, int32_t boxLength, GUIOrientation o
 	return ans;
 }
 
-bool Slider(float& proc, uint32_t flags, const ivec4& bounds) {
-	const ivec4 absoluteBounds = LayoutGetAbsoluteBounds(bounds, true);
+bool Slider(float& proc, uint32_t flags) {
+	const ivec4 absoluteBounds = LayoutGetAbsoluteBounds(true);
 	const int32_t width = absoluteBounds.z - absoluteBounds.x;
 	const int32_t height = absoluteBounds.w - absoluteBounds.y;
 
 	return SliderInternal(proc, 0.1f, context->style.values[GUI_VALUE_SLIDER_WIDTH], (height > width) ? GUI_VERTICAL : GUI_HORIZONTAL, flags, absoluteBounds);
 }
 
-bool Slider(float& proc, uint32_t boxLength, GUIOrientation orientation, uint32_t flags, const ivec4& bounds) {
-	return SliderInternal(proc, 0.1f, boxLength, orientation, flags, LayoutGetAbsoluteBounds(bounds, true));
+bool Slider(float& proc, uint32_t boxLength, GUIOrientation orientation, uint32_t flags) {
+	return SliderInternal(proc, 0.1f, boxLength, orientation, flags, LayoutGetAbsoluteBounds(true));
 }
 
 bool RangeSliderInternal(float& procMin, float& procMax, float step, int32_t boxLength, GUIOrientation orientation, uint32_t flags, const ivec4& bounds) {
@@ -1202,19 +1108,19 @@ bool RangeSliderInternal(float& procMin, float& procMax, float step, int32_t box
 	return ans;
 }
 
-bool RangeSlider(float& procMin, float& procMax, GUIOrientation orientation, uint32_t flags, const ivec4& bounds) {
-	const ivec4 absoluteBounds = LayoutGetAbsoluteBounds(bounds, true);
+bool RangeSlider(float& procMin, float& procMax, GUIOrientation orientation, uint32_t flags) {
+	const ivec4 absoluteBounds = LayoutGetAbsoluteBounds(true);
 	
 	return RangeSliderInternal(procMin, procMax, 0.1f, context->style.values[GUI_VALUE_SLIDER_WIDTH], orientation, flags, absoluteBounds);
 }
 
-bool TextBox(char* text, const uint32_t max_length, int& carrot, uint32_t flags, uint32_t padding, const ivec4& bounds) {
+bool TextBox(char* text, const uint32_t max_length, int& carrot, uint32_t flags, uint32_t padding) {
 	const int32_t CARROT_WIDTH = 1;
 	const int32_t FONT_HEIGHT = 16;
 
 	static time_t lastBlinkTime = 0;
 
-	const ivec4 absoluteBounds = LayoutGetAbsoluteBounds(bounds, true);
+	const ivec4 absoluteBounds = LayoutGetAbsoluteBounds(true);
 	const ivec4 textBounds = {absoluteBounds.x + (int)padding, absoluteBounds.y + (int)padding, absoluteBounds.z - (int)padding, absoluteBounds.w - (int)padding};
 	const int32_t width = textBounds.z - textBounds.x;
 	const int32_t height = textBounds.w - textBounds.y;
@@ -1372,7 +1278,7 @@ bool TextBox(char* text, const uint32_t max_length, int& carrot, uint32_t flags,
 	return ans;
 }
 
-bool TextArea(char* text, const uint32_t max_length, int& carrot, uint32_t flags, uint32_t padding, const ivec4& bounds) {
+bool TextArea(char* text, const uint32_t max_length, int& carrot, uint32_t flags, uint32_t padding) {
 	bool ans = false;
 	static int offsetX = 0;
 	static int offsetY = 0;
@@ -1381,58 +1287,53 @@ bool TextArea(char* text, const uint32_t max_length, int& carrot, uint32_t flags
 	size.x += padding * 2;
 	size.y += padding * 2;
 	
-	ScrollPanel(size.x, size.y, &offsetX, &offsetY, 0, GUI_FLAGS_PANEL, bounds) {
+	ScrollPanel(size.x, size.y, &offsetX, &offsetY, 0, GUI_FLAGS_PANEL) {
 		ans = TextBox(text, max_length, carrot, flags);
 	}
 	
 	return ans;
 }
 
-bool SpinnerInternal(int& value, const char* text, uint32_t flags, const ivec4& nbounds) {
+bool SpinnerInternal(int& value, const char* text, uint32_t flags) {
 	static const uint32_t LABEL_FLAG_MASK = GUI_VISIBLE | GUI_BACKGROUND | GUI_FOREGROUND | GUI_OUTLINE | GUI_ALIGN_MASK;
 	static const uint32_t BUTTON_FLAG_MASK = GUI_VISIBLE | GUI_ENABLED;
 	static const uint32_t BUTTON_FLAGS = GUI_BACKGROUND | GUI_FOREGROUND | GUI_OUTLINE | GUI_ALIGN_CENTER;
+	static const uint32_t button_flags = BUTTON_FLAGS | (flags & BUTTON_FLAG_MASK);
 
-	bool ans = false;
+	const ivec4 bounds = LayoutGetBounds(false);
+	const int32_t buttonWidth = std::min(bounds.z - bounds.x, (int)context->style.values[GUI_VALUE_TITLEBAR_HEIGHT]);
+	const float buttonWidthProc = (float)buttonWidth/ (float)(bounds.z - bounds.x);
+	const int oldValue = value;
 
-	Panel(AbsoluteLayout()){
-		const ivec4 bounds = LayoutGetBounds(nbounds, true);
-		const int32_t buttonWidth = std::min(bounds.z - bounds.x, (int)context->style.values[GUI_VALUE_TITLEBAR_HEIGHT]);
-		uint32_t button_flags = BUTTON_FLAGS | (flags & BUTTON_FLAG_MASK);
-		
-		Label(text, flags & LABEL_FLAG_MASK, {bounds.x + buttonWidth + 1, bounds.y, bounds.z - buttonWidth - 1, bounds.w});
-		if (Button(GUI_ICON_ARROW_LEFT, button_flags, {bounds.x, bounds.y, bounds.x + buttonWidth, bounds.w})) {
-			value--;
-			ans = true;
-		}
-		if (Button(GUI_ICON_ARROW_RIGHT, button_flags, {bounds.z - buttonWidth, bounds.y, bounds.z, bounds.w})) {
-			value++;
-			ans = true;
-		}
+	Panel(BorderLayout(GUI_HORIZONTAL, buttonWidthProc, buttonWidthProc, 0)) {
+		value -= Button(GUI_ICON_ARROW_LEFT, button_flags);
+		Label(text, flags & LABEL_FLAG_MASK);
+		value += Button(GUI_ICON_ARROW_RIGHT, button_flags);
 	}
 
-	return ans;
+	return (oldValue != value);
 }
 
 
-bool Spinner(int& value, uint32_t flags, const ivec4& bounds) {
+bool Spinner(int& value, uint32_t flags) {
 	char tmp[16];
 	snprintf(tmp, sizeof(tmp), "%d", value);
 
-	return SpinnerInternal(value, tmp, flags, bounds);
+	return SpinnerInternal(value, tmp, flags);
 }
 
-bool Spinner(int& value, const char** labels, uint32_t count, uint32_t flags, const ivec4& bounds) {
-	if (SpinnerInternal(value, labels[std::clamp<int>(value, 0, count - 1)], flags, bounds)) {
+bool Spinner(int& value, const char** labels, uint32_t count, uint32_t flags) {
+	if (SpinnerInternal(value, labels[std::clamp<int>(value, 0, count - 1)], flags)) {
 		value = std::clamp<int>(value, 0, count - 1);
 		return true;
 	}
 	return false;
 }
 
-bool Scrollbar(float& value, float barProc, GUIOrientation orientation, float step, const ivec4& bounds) {
-	const ivec4 rbounds = LayoutGetBounds(bounds, false);
+bool Scrollbar(float& value, float barProc, GUIOrientation orientation, float step) {
+	const ivec4 rbounds = LayoutGetBounds(false);
 	uint8_t buttonIcons[2];
+	bool dir;
 	int length;
 	bool ans = false;
 
@@ -1441,11 +1342,13 @@ bool Scrollbar(float& value, float barProc, GUIOrientation orientation, float st
 		length = rbounds.w - rbounds.y;
 		buttonIcons[0] = GUI_ICON_ARROW_UP;
 		buttonIcons[1] = GUI_ICON_ARROW_DOWN;
+		dir = true;
 		break;
 	case GUI_HORIZONTAL :
 		length = rbounds.z - rbounds.x;
 		buttonIcons[0] = GUI_ICON_ARROW_LEFT;
 		buttonIcons[1] = GUI_ICON_ARROW_RIGHT;
+		dir = false;
 		break;
 	default :
 		assert(false);
@@ -1458,129 +1361,29 @@ bool Scrollbar(float& value, float barProc, GUIOrientation orientation, float st
 	const int barLength = length - 32;
 	const float buttonProc = 16.0f / (float)length;
 
-	Panel(BorderLayout(orientation, buttonProc, buttonProc, 0), 0, GUI_FLAGS_PANEL, bounds) {
+	Panel(BorderLayout(orientation, buttonProc, buttonProc, 0), 0, GUI_FLAGS_PANEL) {
 		if (Button(buttonIcons[0])) {
-			value = std::max(value - step, 0.0f);
+			value += dir ? step : - step;
 			ans = true;
 		}
 		if (Slider(value, barLength * barProc, orientation, GUI_VISIBLE | GUI_ENABLED | GUI_FOREGROUND | GUI_OUTLINE)) {
 			ans = true;
 		}
 		if (Button(buttonIcons[1])) {
-			value = std::min(value + step, 1.0f);
+			value += dir ? -step : step;
 			ans = true;
 		}
+		value = std::clamp<float>(value, 0.0f, 1.0f);
 	}
 
 	return ans;
 }
-#if 0
-bool Palette(color& value, uint32_t flags, const ivec4& bounds) {
-	static const uint32_t COLOR_COUNT_X = 16;
-	static const uint32_t COLOR_COUNT_Y = 32;
-	static const vec4 PRIME_COLORS[] = {
-		{1.0f, 0.0f, 0.0f, 1.0f}, // RED
-		{1.0f, 1.0f, 0.0f, 1.0f}, // YELLOW
-		{0.0f, 1.0f, 0.0f, 1.0f}, // GREEN
-		{0.0f, 1.0f, 1.0f, 1.0f}, // CYAN
-		{0.0f, 0.0f, 1.0f, 1.0f}, // BLUE
-		{1.0f, 0.0f, 1.0f, 1.0f}, // VIOLETE
-		{1.0f, 0.0f, 0.0f, 1.0f}, // RED
-	};
-	static const uint32_t PrimeColorCount = (sizeof(PRIME_COLORS) / sizeof(PRIME_COLORS[0])) - 1;
 
-	const ivec4 absoluteBounds = LayoutGetAbsoluteBounds(bounds, true);
-
-	const int width = absoluteBounds.z - absoluteBounds.x;
-	const int height = absoluteBounds.w - absoluteBounds.y;
-
-	const int colorTileSizeX = (width  / COLOR_COUNT_X / PrimeColorCount) * 1;
-	const int colorTileSizeY = (height / COLOR_COUNT_Y / PrimeColorCount) * 3;
-	const int offsetX = (width  - colorTileSizeX * COLOR_COUNT_X * PrimeColorCount) / 2;
-	const int offsetY = (height - colorTileSizeY * COLOR_COUNT_Y * 2) / 2;
-
-	if (flags & GUI_VISIBLE) {
-		for (uint32_t y = 0; y < COLOR_COUNT_Y * 2; ++y) {
-			const int colorIndexY = y / COLOR_COUNT_Y;
-			const float procY = (float)(y % COLOR_COUNT_Y) / (float)(COLOR_COUNT_Y);
-			const float iprocY = 1.0f - procY;
-			for (uint32_t x = 0; x < COLOR_COUNT_X * PrimeColorCount; ++x) {
-				const int colorIndexX = x / COLOR_COUNT_X;
-				float procX = (float)(x % COLOR_COUNT_X)/ (float)(COLOR_COUNT_X);
-				const float iprocX = 1.0f - procX;
-				const vec4 tmpca[] = {
-					{1.0f, 1.0f, 1.0f, 1.0f},
-					{
-						PRIME_COLORS[colorIndexX].x * iprocX + PRIME_COLORS[colorIndexX + 1].x * procX,
-						PRIME_COLORS[colorIndexX].y * iprocX + PRIME_COLORS[colorIndexX + 1].y * procX,
-						PRIME_COLORS[colorIndexX].z * iprocX + PRIME_COLORS[colorIndexX + 1].z * procX,
-						PRIME_COLORS[colorIndexX].w * iprocX + PRIME_COLORS[colorIndexX + 1].w * procX,
-					},
-					{0.0f, 0.0f, 0.0f, 1.0f}
-				};
-				vec4 k = {
-					tmpca[colorIndexY].x * iprocY + tmpca[colorIndexY + 1].x * procY,
-					tmpca[colorIndexY].y * iprocY + tmpca[colorIndexY + 1].y * procY,
-					tmpca[colorIndexY].z * iprocY + tmpca[colorIndexY + 1].z * procY,
-					tmpca[colorIndexY].w * iprocY + tmpca[colorIndexY + 1].w * procY,
-				};
-				GUIDrawQuad({
-								absoluteBounds.x + offsetX + x * colorTileSizeX, 
-				                absoluteBounds.y + offsetY + y * colorTileSizeY, 
-				                absoluteBounds.x + offsetX + (x + 1) * colorTileSizeX, 
-				                absoluteBounds.y + offsetY + (y + 1) * colorTileSizeY
-							},
-				            {k.x * 255.0f, k.y * 255.0f, k.z * 255.0f, k.w * 255.0f});
-			}
-		}
-	}
-/**/
-	const ivec4 paletteRect = {absoluteBounds.x + offsetX, absoluteBounds.y + offsetY, absoluteBounds.x + offsetX + COLOR_COUNT_X * PrimeColorCount * colorTileSizeX, absoluteBounds.y + offsetY + COLOR_COUNT_Y * 2 * colorTileSizeY};
-	const bool isInside = RECT_CONTAINS_POINT(paletteRect, GetMousePosition());
-	const ivec2 relativeMousePosition = {
-			GetMousePosition().x - paletteRect.x,
-			GetMousePosition().y - paletteRect.y
-		};
-
-	if ((flags & GUI_ENABLED) && isInside && GetMouseLeftButton() == false && GetLastMouseLeftButton() == true) {
-		const int colorIndexX = relativeMousePosition.x / (COLOR_COUNT_X * colorTileSizeX);
-		const int colorIndexY = relativeMousePosition.y / (COLOR_COUNT_Y * colorTileSizeY);
-		const int x = (relativeMousePosition.x / colorTileSizeX) % COLOR_COUNT_X;
-		const int y = (relativeMousePosition.y / colorTileSizeY) % COLOR_COUNT_Y;
-		const float procX = (float)(x) / (float)(COLOR_COUNT_X - 1);
-		const float procY = (float)(y) / (float)(COLOR_COUNT_Y - 1);
-		const vec4 tmpca[] = {
-			{1.0f, 1.0f, 1.0f, 1.0f},
-			{
-				PRIME_COLORS[colorIndexX].x * (1.0f - procX) + PRIME_COLORS[colorIndexX + 1].x * procX,
-				PRIME_COLORS[colorIndexX].y * (1.0f - procX) + PRIME_COLORS[colorIndexX + 1].y * procX,
-				PRIME_COLORS[colorIndexX].z * (1.0f - procX) + PRIME_COLORS[colorIndexX + 1].z * procX,
-				PRIME_COLORS[colorIndexX].w * (1.0f - procX) + PRIME_COLORS[colorIndexX + 1].w * procX,
-			},
-			{0.0f, 0.0f, 0.0f, 1.0f}
-		};
-		const vec4 outputColor = {
-			tmpca[colorIndexY].x * (1.0f - procY) + tmpca[colorIndexY + 1].x * procY,
-			tmpca[colorIndexY].y * (1.0f - procY) + tmpca[colorIndexY + 1].y * procY,
-			tmpca[colorIndexY].z * (1.0f - procY) + tmpca[colorIndexY + 1].z * procY,
-			tmpca[colorIndexY].w * (1.0f - procY) + tmpca[colorIndexY + 1].w * procY,
-		};
-		value = {
-			outputColor.x * 255, 
-			outputColor.y * 255, 
-			outputColor.z * 255, 
-			outputColor.w * 255};
-		return true;
-	}
-
-	return false;
-}
-#endif
-Layout BeginPanel(const Layout& layout, uint32_t padding, uint32_t flags, const ivec4& bounds) {
+Layout BeginPanel(const Layout& layout, uint32_t padding, uint32_t flags) {
 	context->layout.backup_viewport = context->viewport;
 	context->layout.backup_clip = context->clip;
 
-	context->viewport = LayoutGetAbsoluteBounds(bounds, true);
+	context->viewport = LayoutGetAbsoluteBounds(true);
 	const int32_t width = context->viewport.z - context->viewport.x;
 	const int32_t height = context->viewport.w - context->viewport.y;
 
@@ -1621,27 +1424,23 @@ void EndPanel(Layout* bkp_layout) {
 	context->clip = context->layout.backup_clip;
 }
 
-Layout BeginSplitPanel(GUIOrientation orientation, float& weight, uint32_t padding, uint32_t flags, const ivec4& bounds) {
+Layout BeginSplitPanel(GUIOrientation orientation, float& weight, uint32_t padding, uint32_t flags) {
 	static const int32_t SEPARATOR = 4;
-	const Layout ans = BeginPanel(SplitLayout(orientation, weight, SEPARATOR), padding, flags, bounds);
+	const Layout ans = BeginPanel(SplitLayout(orientation, weight, SEPARATOR), padding, flags);
 	const ivec4 absoluteBounds = context->viewport; // DAFUQ ?!
 	const int32_t width  = absoluteBounds.z - absoluteBounds.x;
 	const int32_t height = absoluteBounds.w - absoluteBounds.y;
 	const int32_t halfPadding = SEPARATOR / 2;
-	ivec4 separatorBounds;
+	ivec4 separatorBounds = absoluteBounds;
 
 	switch (orientation) {
 	case GUI_VERTICAL :
-		{
-		const int32_t k = (float)(height - SEPARATOR) * weight;
-		separatorBounds = {absoluteBounds.x, absoluteBounds.y + k, absoluteBounds.z, absoluteBounds.y + k + SEPARATOR};
-		}
+		separatorBounds.y += (float)(height - SEPARATOR) * weight;
+		separatorBounds.w = separatorBounds.y + SEPARATOR;
 		break;
 	case GUI_HORIZONTAL :
-		{
-		const int32_t k = (float)(width - SEPARATOR) * weight;
-		separatorBounds = {absoluteBounds.x + k, absoluteBounds.y, absoluteBounds.x + k + SEPARATOR, absoluteBounds.w};
-		}
+		separatorBounds.x += (float)(width - SEPARATOR) * weight;
+		separatorBounds.z = separatorBounds.x + SEPARATOR;
 		break;
 	default:
 		assert(false);
@@ -1667,79 +1466,89 @@ Layout BeginSplitPanel(GUIOrientation orientation, float& weight, uint32_t paddi
 	return ans;
 }
 
-Layout BeginScrollPanel(int width, int height, int* offsetX, int* offsetY, uint32_t margin, uint32_t flags, const ivec4& bounds) {
-	Layout ans = BeginPanel(AbsoluteLayout()); // GridLayout(1, 1, 0)
-	const ivec4 absoluteRectangle = LayoutGetAbsoluteBounds(bounds, false);
-	const int visible_width = absoluteRectangle.z - absoluteRectangle.x;
-	const int visible_height = absoluteRectangle.w - absoluteRectangle.y;
-	const int WIDTH = 15 + 2; // ICON Lenght
-	const bool vBarVisible = ((visible_height < height) && (visible_height > WIDTH) && (offsetY != nullptr));
-	const bool hBarVisible = ((visible_width  <  width) && (visible_width > WIDTH) && (offsetX != nullptr));
-	
-	if ((visible_width <= 0) || (visible_height <= 0)) {
-		ans.run_statement = false;
-		return ans;
-	}
+// ScrollPanel components
+inline void ScrollPanelClient(ivec4& bounds) {
+	bounds = LayoutGetAbsoluteBounds(true);
+}
 
-	if (hBarVisible == 0) {
-		width = visible_width - vBarVisible * WIDTH;
-	}
-	if (vBarVisible == 0) {
-		height = visible_height - hBarVisible * WIDTH;
-	}
+inline void ScrollPanelHorizontal(ivec4& clientBounds, int32_t width, int* offset) {
+	static const int HEIGHT = 18;
 
-	if (vBarVisible) {
-		if (visible_width < WIDTH) {
-			ans.run_statement = false;
-			return ans;
+	const ivec4 bounds = LayoutGetBounds(false);
+	const float visibleWidth = bounds.z - bounds.x;
+	const float diff = width - visibleWidth;
+
+	if ((diff > HEIGHT) && (offset != NULL)) {
+		Panel(FixSplitLayout(GUI_VERTICAL, -HEIGHT, 0, 0)) {
+			ScrollPanelClient(clientBounds);
+
+			float progress = (float)*offset / diff;
+			if (Scrollbar(progress, diff / (float)width, GUI_HORIZONTAL)) {
+				*offset = progress * diff;
+			}
 		}
-		const float k = visible_height - (hBarVisible ? WIDTH : 0);
-		const float diff = height - k;
-		const float barProc = k / (float)height;
-		float fv = 1.0f - (float)*offsetY / diff;
-		if (Scrollbar(fv, barProc, GUI_VERTICAL, 0.1f, {visible_width - WIDTH, 0, visible_width, visible_height  - (hBarVisible? WIDTH : 0)})) {
-			*offsetY = (1.0f - fv) * diff;
-		}
-		context->clip.z -= WIDTH;;
 	} else {
-		if (offsetY) {
-			offsetY = 0;
-		}
+		ScrollPanelClient(clientBounds);
 	}
-	if (hBarVisible) {
-		const float k = visible_width - (vBarVisible ? WIDTH : 0);
-		const float diff = width - k;
-		const float barProc = k / (float)width;
-		float fv = (float)*offsetX / diff;
-		if (Scrollbar(fv, barProc, GUI_HORIZONTAL, 0.1f, {0, visible_height - WIDTH, visible_width - (vBarVisible ? WIDTH : 0), visible_height})) {
-			*offsetX = fv * diff;
-		}
-		context->clip.w -= WIDTH;
-	} else {
-		if (offsetX) {
-			*offsetX = 0;
-		}
-	}
+}
 
-	context->viewport.x = absoluteRectangle.x;
-	context->viewport.z = absoluteRectangle.x+ width;
-	context->viewport.y = absoluteRectangle.y;
-	context->viewport.w = absoluteRectangle.y + height;
-	
-	if (offsetX) {
-		context->viewport.x -= *offsetX;
-		context->viewport.z -= *offsetX;
+inline void ScrollPanelVertical(ivec4& clientBounds, int32_t width, int32_t height, int* offsetX, int* offsetY) {
+	static const int WIDTH = 16;
+
+	const ivec4 bounds = LayoutGetBounds(false);
+	const float visibleHeight = bounds.w - bounds.y;
+	const float diff = height - visibleHeight;
+
+	if ((diff > WIDTH) && (offsetY != NULL)) {
+		Panel(FixSplitLayout(GUI_HORIZONTAL, -WIDTH, 0, 0)) {
+			ScrollPanelHorizontal(clientBounds, width, offsetX);
+
+			float progress = 1.0f - (float)*offsetY / diff;
+			if (Scrollbar(progress, diff / (float)height, GUI_VERTICAL)) {
+				*offsetY = (1.0f - progress) * diff;
+			}
+		}
+
+		if (RECT_CONTAINS_POINT(clientBounds, GetMousePosition())) {
+			int32_t mouseWheelDelta = 0;
+			if (GetMouseWheelDelta(&mouseWheelDelta, false)) {
+				// TODO: Check ALT to update offsetX ?
+				*offsetY = std::clamp<int32_t>(*offsetY + (diff / 10) * mouseWheelDelta, 0, diff);
+			}
+		}
+	} else {
+		ScrollPanelHorizontal(clientBounds, width, offsetX);
+
+		if (offsetX && RECT_CONTAINS_POINT(clientBounds, GetMousePosition())) {
+			int32_t mouseWheelDelta = 0;
+			if (GetMouseWheelDelta(&mouseWheelDelta, false)) {
+				const float visibleWidth = bounds.z - bounds.x;
+				const float diff = width - visibleWidth;
+				*offsetX = std::clamp<int32_t>(*offsetX + (diff / 10) * mouseWheelDelta, 0, diff);
+			}
+		}
 	}
-	
-	if (offsetY) {
-		context->viewport.y -= *offsetY;
-		context->viewport.w -= *offsetY;
-	}
+}
+
+Layout BeginScrollPanel(int width, int height, int* offsetX, int* offsetY, uint32_t margin, uint32_t flags) {
+	Layout ans = BeginPanel();
+	const ivec4 bounds = LayoutGetBounds(false);
+	ivec4 clientBounds;
+
+	ScrollPanelVertical(clientBounds, width, height, offsetX, offsetY);
+
+	RectClip(clientBounds, context->clip);
+	context->clip = clientBounds;
+
+	context->viewport.x = clientBounds.x - (offsetX ? *offsetX : 0);
+	context->viewport.y = clientBounds.y - (offsetY ? *offsetY : 0);
+	context->viewport.z = context->viewport.x + (width == 0 ? bounds.z - bounds.x : width);
+	context->viewport.w = context->viewport.y + (height == 0 ? bounds.w - bounds.y : height);
 
 	return ans;
 }
 
-Layout BeginTabPanel(const char* names, int& selected, uint32_t margin, uint32_t flags, const ivec4& bounds) {
+Layout BeginTabPanel(const char* names, int& selected, uint32_t margin, uint32_t flags) {
 	uint32_t count = (*names != '\0');
 	for(const char* ptr = names, *begin = ptr; *ptr !='\0'; ++ptr) {
 		if (*ptr == ',') {
@@ -1749,7 +1558,12 @@ Layout BeginTabPanel(const char* names, int& selected, uint32_t margin, uint32_t
 			begin = ptr + 1;
 		}
 	}
-	Layout ans = BeginPanel(AbsoluteLayout(0));
+
+	ivec4 absoluteRectangle = LayoutGetBounds(false);
+	const int32_t height = absoluteRectangle.w - absoluteRectangle.y;
+	const int32_t tabHeight = std::min(absoluteRectangle.w - absoluteRectangle.y, (int)context->style.values[GUI_VALUE_TITLEBAR_HEIGHT]);
+	const float tabHeightProc = (float)tabHeight / (float)height;
+	Layout ans = BeginPanel(SplitLayout(GUI_VERTICAL, tabHeightProc, 0, 0));
 	if (count == 0) {
 		ans.run_statement = false;
 	}
@@ -1757,39 +1571,33 @@ Layout BeginTabPanel(const char* names, int& selected, uint32_t margin, uint32_t
 		return ans;
 	}
 
-	const ivec4 absoluteRectangle = LayoutGetAbsoluteBounds(bounds, true);
-	const int32_t tabWidth = (absoluteRectangle.z - absoluteRectangle.x) / count;
-	const int32_t tabHeight = std::min(absoluteRectangle.w - absoluteRectangle.y, (int)context->style.values[GUI_VALUE_TITLEBAR_HEIGHT]);
-
-	int index = 0;
-	const char* begin = names;
-	const char* ptr = names;
-	char tmp[128]; // TODO: implemented button with length string
-	do {
-		switch (*ptr) {
-		case ',' :
-		case '\0' :
-			if (ptr - begin) {
-				size_t length = (size_t)(ptr - begin);
-				strncpy(tmp, begin, std::min(length, sizeof(tmp)));
-				tmp[length] = 0;
-				if (Button(tmp, GUI_FLAGS_BUTTON | ((index == selected) ? GUI_CLICKED | GUI_FOCUSED : GUI_NONE), {index * tabWidth, 0, (index + 1) * tabWidth - 1, tabHeight})) {
-					selected = index;
+	Panel(GridLayout(count, 1, 0)) {
+		int index = 0;
+		const char* begin = names;
+		const char* ptr = names;
+		char tmp[128]; // TODO: implemented button with length string
+		do {
+			switch (*ptr) {
+			case ',' :
+			case '\0' :
+				if (ptr - begin) {
+					size_t length = (size_t)(ptr - begin);
+					strncpy(tmp, begin, std::min(length, sizeof(tmp)));
+					tmp[length] = 0;
+					if (Button(tmp, GUI_FLAGS_BUTTON | ((index == selected) ? GUI_CLICKED | GUI_FOCUSED : GUI_NONE))) {
+						selected = index;
+					}
 				}
+				++index;
+				begin = ptr + 1;
+				break;
 			}
-			++index;
-			begin = ptr + 1;
-			break;
-		}
-	} while (*ptr++ != '\0');
+		} while (*ptr++ != '\0');
+	}
 
-	context->viewport.x = absoluteRectangle.x;
-	context->viewport.y = absoluteRectangle.y + tabHeight + 1;
-	context->viewport.z = absoluteRectangle.z;
-	context->viewport.w = absoluteRectangle.w;
-
-	GUIDrawBorder(context->viewport, context->style.colors[GUI_COLOR_BORDER]);
-	GUIDrawQuad(context->viewport, context->style.colors[GUI_COLOR_PANEL]);
+	absoluteRectangle = LayoutGetAbsoluteBounds(false);
+	GUIDrawBorder(absoluteRectangle, context->style.colors[GUI_COLOR_BORDER]);
+	GUIDrawQuad(absoluteRectangle, context->style.colors[GUI_COLOR_PANEL]);
 
 	return ans;
 }
@@ -1797,11 +1605,14 @@ Layout BeginTabPanel(const char* names, int& selected, uint32_t margin, uint32_t
 Layout BeginWindow(ivec4* rbounds, const char* title, uint32_t margin, uint32_t* flags) {
 	assert(context != NULL);
 
-	static const int32_t CloseButtonSize = context->style.values[GUI_VALUE_TITLEBAR_HEIGHT];
-	Layout ans = BeginPanel();
-	ivec4 bounds = LayoutGetAbsoluteBounds(*rbounds, true);
+	const int32_t TitlebarHeight = context->style.values[GUI_VALUE_TITLEBAR_HEIGHT];
+	// ivec4 bounds = LayoutGetAbsoluteBounds(*rbounds, true);
+	ivec4 bounds = *rbounds;
+	ivec4 contentBounds = bounds;
 
 	uint32_t defaultFlags = GUI_FLAGS_WINDOW  & ~GUI_WINDOW_CLOSE;
+	Layout ans = BeginPanel();
+	context->viewport = bounds;
 
 	if (flags == NULL) {
 		flags = & defaultFlags;
@@ -1811,58 +1622,82 @@ Layout BeginWindow(ivec4* rbounds, const char* title, uint32_t margin, uint32_t*
 		return ans;
 	}
 
-	GUIDrawQuad(bounds, context->style.colors[GUI_COLOR_PANEL]);
-	context->viewport.x = bounds.x + 1;
-	context->viewport.y = bounds.y + 1;
-	context->viewport.z = bounds.z - 1;
-	context->viewport.w = bounds.w - 1;
+	if (*flags & GUI_BACKGROUND) {
+		GUIDrawQuad(bounds, context->style.colors[GUI_COLOR_PANEL]);
+	}
 
 	if (*flags & GUI_WINDOW_TITLEBAR) {
-		bounds.w = std::max(bounds.w, bounds.y + context->style.values[GUI_VALUE_TITLEBAR_HEIGHT] + 15);
-		const int width = bounds.z - bounds.x;
-		ivec4 titlebarRectangle = {bounds.x, bounds.y, bounds.z - CloseButtonSize, bounds.y + context->style.values[GUI_VALUE_TITLEBAR_HEIGHT]};
-		if (*flags & GUI_WINDOW_MOVE) {
-			const int height = bounds.w - bounds.y;
-			if (Movable(titlebarRectangle)) {
-				bounds = {titlebarRectangle.x, titlebarRectangle.y, titlebarRectangle.x + width, titlebarRectangle.y + height};
+		const int height = bounds.w - bounds.y;
+		const int width  = bounds.z - bounds.x;
+
+		Panel(FixSplitLayout(GUI_VERTICAL, TitlebarHeight, 0, 0)) {
+			// Top element
+			Panel(FixSplitLayout(GUI_HORIZONTAL, -TitlebarHeight, 0, 0)) {
+				// Left element
+				ivec4 titlebarBounds = LayoutGetAbsoluteBounds(false);
+				GUIDrawQuad(titlebarBounds, context->style.colors[GUI_COLOR_TITLEBAR]);
+				if (Movable(titlebarBounds)) {
+					bounds = {titlebarBounds.x, titlebarBounds.y, titlebarBounds.x + width, titlebarBounds.y + height};
+				}
+
+				Label(title, GUI_VISIBLE | GUI_FOREGROUND | GUI_ALIGN_CENTER);
+
+				// Right element
+				if ((*flags & GUI_WINDOW_CLOSE) && (Button(GUI_ICON_CLOSE))) {
+					*flags &= ~GUI_VISIBLE;
+				}
 			}
+
+			// Bottom element
+			contentBounds = LayoutGetAbsoluteBounds(true);
 		}
-		GUIDrawQuad({bounds.x, bounds.y, bounds.z, bounds.y + context->style.values[GUI_VALUE_TITLEBAR_HEIGHT]}, context->style.colors[GUI_COLOR_TITLEBAR]);
-		if (title) {
-			GUIDrawText(title, {bounds.x + 2, bounds.y + 2, bounds.z - CloseButtonSize, bounds.y + context->style.values[GUI_VALUE_TITLEBAR_HEIGHT]}, context->style.colors[GUI_COLOR_TEXT], *flags & GUI_ALIGN_CENTER);
-		}
-		if ((*flags & GUI_WINDOW_CLOSE)) {
-			bounds.z = std::max(bounds.z, bounds.x + context->style.values[GUI_VALUE_TITLEBAR_HEIGHT]);
-			if (Button(GUI_ICON_CLOSE, GUI_FLAGS_BUTTON, {width - context->style.values[GUI_VALUE_TITLEBAR_HEIGHT] + 1, 1, width - 1, context->style.values[GUI_VALUE_TITLEBAR_HEIGHT] - 1})) {
-				*flags &= ~GUI_VISIBLE;
-			}
-		}
-		context->viewport.y += context->style.values[GUI_VALUE_TITLEBAR_HEIGHT];
+	} else {
+		// TODO
 	}
+	context->viewport = contentBounds;
 
 	if (*flags & GUI_WINDOW_SIZE) {
-		bounds.z = std::max(bounds.z, bounds.x);
-		context->viewport.w -= 15;
-		
-		ivec4 iconBounds = {bounds.z - 15, bounds.w - 15, bounds.z, bounds.w};
-		bool focused = RECT_CONTAINS_POINT(iconBounds, GetMousePosition());
-		bool clicked = focused && GetMouseLeftButton();
+		const int32_t width  = context->viewport.z - context->viewport.x;
+		const int32_t height = context->viewport.w - context->viewport.y;
+		Panel(FixSplitLayout(GUI_VERTICAL, height - TitlebarHeight, 0, 0)) {
+			// Top element
+			contentBounds = LayoutGetAbsoluteBounds(true);
 
-		if (Movable(iconBounds)) {
-			bounds.z = iconBounds.z;
-			bounds.w = iconBounds.w;
+			// Bottom element
+			Panel(FixSplitLayout(GUI_HORIZONTAL, width - TitlebarHeight, 0)) {
+				//DummyElement();
+				Label("Some status text goes here");
+				ivec4 sizeBounds = {bounds.z - TitlebarHeight, bounds.w - TitlebarHeight, bounds.z, bounds.w}; // LayoutGetAbsoluteBounds(true)
+				if (Movable(sizeBounds)) {
+					bounds.z = sizeBounds.z;
+					bounds.w = sizeBounds.w;
+
+					// Enforce smallest width and height values to maintain proper functionality
+					if (bounds.z - bounds.x < TitlebarHeight) {
+						bounds.z = bounds.x + TitlebarHeight;
+					}
+					if (bounds.w - bounds.y < TitlebarHeight * 2) {
+						bounds.w = bounds.y + TitlebarHeight * 2;
+					}
+				}
+
+				const bool focused = RECT_CONTAINS_POINT(sizeBounds, GetMousePosition());
+				const bool clicked = focused && GetMouseLeftButton();
+				GUIDrawIcon(GUI_ICON_SIZE, sizeBounds, context->style.colors[clicked ? GUI_COLOR_ACTIVE : focused ? GUI_COLOR_FOCUSED : GUI_COLOR_PANE]);
+			}
 		}
-		
-		GUIDrawIcon(GUI_ICON_SIZE, iconBounds, context->style.colors[clicked ? GUI_COLOR_ACTIVE : focused ? GUI_COLOR_FOCUSED : GUI_COLOR_PANE]);
+		context->viewport = contentBounds;
 	}
 
-	GUIDrawBorder(bounds, context->style.colors[GUI_COLOR_BORDER]);
-	context->viewport.x += margin;
-	context->viewport.y += margin;
-	context->viewport.z -= margin;
-	context->viewport.w -= margin;
+	if (*flags & GUI_OUTLINE) {
+		GUIDrawBorder(bounds, context->style.colors[GUI_COLOR_BORDER]);
+		context->viewport.x += 1;
+		context->viewport.y += 1;
+		context->viewport.z -= 1;
+		context->viewport.w -= 1;
+	}
+
 	*rbounds = bounds;
-	
 	return ans;
 }
 
@@ -1879,6 +1714,12 @@ void SetLayout(const Layout& layout) {
 	case GUI_LAYOUT_GRID:
 		context->layout.grid.cellSize.x = (context->viewport.z - context->viewport.x) / context->layout.grid.count.x;
 		context->layout.grid.cellSize.y = (context->viewport.w - context->viewport.y) / context->layout.grid.count.y;
+		break;
+	case GUI_LAYOUT_SPLIT :
+		if (context->layout.split.weight < 0) {
+			context->layout.split.weight = 1.0f + context->layout.split.weight;
+			//context->layout.elementIndex += 1;
+		}
 		break;
 	}
 }
