@@ -36,7 +36,7 @@ void calculatorPanel() {
 }
 
 void calculatorWindow(ivec4* bounds, uint32_t* flags) {
-	Window(bounds, "Calculator", 0, flags) {
+	Window(bounds, "Calculator", "", 0, flags) {
 		calculatorPanel();
 	}
 }

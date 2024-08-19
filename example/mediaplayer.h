@@ -97,7 +97,7 @@ void mediaPlayerPanel() {
 }
 
 void mediaPlayerWindow() {
-	Window(&mediaPlayerBounds, mediaPlayerTitle, 2, &mediaPlayerFlags) {
+	Window(&mediaPlayerBounds, mediaPlayerTitle, "", 2, &mediaPlayerFlags) {
 		mediaPlayerPanel();
 	}
 }

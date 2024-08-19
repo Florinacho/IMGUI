@@ -984,34 +984,29 @@ bool Slider(float& proc, uint32_t boxLength, GUIOrientation orientation, uint32_
 bool RangeSliderInternal(float& procMin, float& procMax, float step, int32_t boxLength, GUIOrientation orientation, uint32_t flags, const ivec4& bounds) {
 	const int32_t width  = bounds.z - bounds.x;
 	const int32_t height = bounds.w - bounds.y;
+	int32_t mid;
 	ivec4 boxBounds[2];
-	ivec2 begin;
-	ivec2 end;
 	bool ans = false;
 	bool selectedLeft;
 
 	switch (orientation) {
 	case GUI_VERTICAL:
 		{
-		const int32_t mid = (bounds.x + bounds.z) / 2;
-		begin = {mid, bounds.y};
-		end = {mid, bounds.w};
-		int32_t k0 = (float)(height - boxLength) * procMin;
-		int32_t k1 = (float)(height - boxLength) * procMax;
-		boxBounds[0] = {bounds.x, bounds.w - k0 - boxLength, bounds.z, bounds.w - k0};
-		boxBounds[1] = {bounds.x, bounds.w - k1 - boxLength, bounds.z, bounds.w - k1};
+		mid = (bounds.x + bounds.z) / 2;
+		int32_t minPosition = (float)(height - boxLength) * procMin;
+		int32_t maxPosition = (float)(height - boxLength) * procMax;
+		boxBounds[0] = {bounds.x, bounds.w - minPosition - boxLength, bounds.z, bounds.w - minPosition};
+		boxBounds[1] = {bounds.x, bounds.w - maxPosition - boxLength, bounds.z, bounds.w - maxPosition};
 		selectedLeft = abs(GetMousePosition().y - boxBounds[0].w) < abs(GetMousePosition().y - boxBounds[1].y);
 		}
 		break;
 	case GUI_HORIZONTAL:
 		{
-		const int32_t mid = (bounds.w + bounds.y) / 2;
-		begin = {bounds.x, mid};
-		end = {bounds.z, mid};
-		int32_t k0 = (float)(width - boxLength) * procMin;
-		int32_t k1 = (float)(width - boxLength) * procMax;
-		boxBounds[0] = {bounds.x + k0, bounds.y, bounds.x + k0 + boxLength, bounds.w};
-		boxBounds[1] = {bounds.x + k1, bounds.y, bounds.x + k1 + boxLength, bounds.w};
+		mid = (bounds.w + bounds.y) / 2;
+		int32_t minPosition = (float)(width - boxLength) * procMin;
+		int32_t maxPosition = (float)(width - boxLength) * procMax;
+		boxBounds[0] = {bounds.x + minPosition, bounds.y, bounds.x + minPosition + boxLength, bounds.w};
+		boxBounds[1] = {bounds.x + maxPosition, bounds.y, bounds.x + maxPosition + boxLength, bounds.w};
 		selectedLeft = abs(GetMousePosition().x - boxBounds[0].z) < abs(GetMousePosition().x - boxBounds[1].x);
 		}
 		break;
@@ -1022,6 +1017,7 @@ bool RangeSliderInternal(float& procMin, float& procMax, float step, int32_t box
 	const bool focused = (flags & GUI_ENABLED) && (RECT_CONTAINS_POINT(bounds, GetMousePosition()) || RECT_CONTAINS_POINT(bounds, GetLastMousePosition()));
 	const bool clicked = (focused && GetMouseLeftButton());
 
+	// Mouse wheel event
 	if (focused) {
 		int32_t mouseWheelDelta = 0;
 		if (GetMouseWheelDelta(&mouseWheelDelta, false)) {
@@ -1033,70 +1029,42 @@ bool RangeSliderInternal(float& procMin, float& procMax, float step, int32_t box
 			ans = true;
 		}
 	}
+
+	// Mouse button event
 	if (clicked) {
-		float newValue;
+		float newValue = 0.0f;
 		switch (orientation) {
 		case GUI_VERTICAL :
-			if (GetMousePosition().y <= boxBounds[0].w) {
-				newValue = (float)(GetMousePosition().y - boxLength / 2 - bounds.y) / (float)(height - boxLength);
-				procMin = std::clamp(newValue, 0.0f, procMax);
-				ans = true;
-			} else if (GetMousePosition().y >= boxBounds[1].y) {
-				newValue = (float)(GetMousePosition().y - boxLength / 2 - bounds.y) / (float)(height - boxLength);
-				procMax = std::clamp(newValue, procMin, 1.0f);
-				ans = true;
-			} else {
-				if (abs(GetMousePosition().y - boxBounds[0].w) < abs(GetMousePosition().y - boxBounds[1].y)) {
-					newValue = (float)(GetMousePosition().y - boxLength / 2 - bounds.y) / (float)(height - boxLength);
-					procMin = std::clamp(newValue, 0.0f, procMax);
-					ans = true;
-				} else {
-					newValue = (float)(GetMousePosition().y - boxLength / 2 - bounds.y) / (float)(height - boxLength);
-					procMax = std::clamp(newValue, procMin, 1.0f);
-					ans = true;
-				}
-			}
+			newValue = 1.0f - (float)(GetMousePosition().y - boxLength / 2 - bounds.y) /(float)(height - boxLength);
 			break;
 		case GUI_HORIZONTAL :
-			if (GetMousePosition().x <= boxBounds[0].z) {
-				newValue = (float)(GetMousePosition().x - boxLength / 2 - bounds.x) / (float)(width - boxLength);
-				procMin = std::clamp(newValue, 0.0f, procMax);
-				ans = true;
-			} else if (GetMousePosition().x >= boxBounds[1].x) {
-				newValue = (float)(GetMousePosition().x - boxLength / 2 - bounds.x) / (float)(width - boxLength);
-				procMax = std::clamp(newValue, procMin, 1.0f);
-				ans = true;
-			} else {
-				if (abs(GetMousePosition().x - boxBounds[0].z) < abs(GetMousePosition().x - boxBounds[1].x)) {
-					newValue = (float)(GetMousePosition().x - boxLength / 2 - bounds.x) / (float)(width - boxLength);
-					procMin = std::clamp(newValue, 0.0f, procMax);
-					ans = true;
-				} else {
-					newValue = (float)(GetMousePosition().x - boxLength / 2 - bounds.x) / (float)(width - boxLength);
-					procMax = std::clamp(newValue, procMin, 1.0f);
-					ans = true;
-				}
-			}
+			newValue = (float)(GetMousePosition().x - boxLength / 2 - bounds.x) / (float)(width - boxLength);
 			break;
 		}
+		if (selectedLeft) {
+			procMin = std::clamp<float>(newValue, 0.0f, procMax);
+		} else {
+			procMax = std::clamp<float>(newValue, procMin, 1.0f);
+		}
+		ans = true;
 	}
+
+	// Render
 	if (flags & GUI_VISIBLE) {
 		if (flags & GUI_BACKGROUND) {
 			switch (orientation) {
 			case GUI_VERTICAL:
-				GUIDrawQuad({begin.x,     begin.y, boxBounds[0].x, end.y + 1}, context->style.colors[GUI_COLOR_PANE]);
-				GUIDrawQuad({boxBounds[0].z, begin.y - 1, boxBounds[1].x, end.y + 2}, context->style.colors[clicked ? GUI_COLOR_ACTIVE : GUI_COLOR_FOCUSED]);
-				GUIDrawQuad({boxBounds[1].z, begin.y, end.x, end.y + 1}, context->style.colors[GUI_COLOR_PANE]);
+				GUIDrawQuad({mid - 0,        bounds.y,       mid + 1, bounds.w      }, context->style.colors[GUI_COLOR_PANE]);
+				GUIDrawQuad({mid - 1,        boxBounds[1].y, mid + 2, boxBounds[0].y}, context->style.colors[clicked ? GUI_COLOR_ACTIVE : GUI_COLOR_FOCUSED]);
 				break;
 			case GUI_HORIZONTAL:
-				GUIDrawQuad({begin.x,     begin.y, boxBounds[0].x, end.y + 1}, context->style.colors[GUI_COLOR_PANE]);
-				GUIDrawQuad({boxBounds[0].z, begin.y - 1, boxBounds[1].x, end.y + 2}, context->style.colors[clicked ? GUI_COLOR_ACTIVE : GUI_COLOR_FOCUSED]);
-				GUIDrawQuad({boxBounds[1].z, begin.y, end.x, end.y + 1}, context->style.colors[GUI_COLOR_PANE]);
+				GUIDrawQuad({bounds.x,       mid - 0, bounds.z,       mid + 1       }, context->style.colors[GUI_COLOR_PANE]);
+				GUIDrawQuad({boxBounds[0].z, mid - 1, boxBounds[1].x, mid + 2       }, context->style.colors[clicked ? GUI_COLOR_ACTIVE : GUI_COLOR_FOCUSED]);
 				break;
 			}
 		}
 		if (flags & GUI_FOREGROUND) {
-			GUIDrawQuad(boxBounds[0], context->style.colors[(clicked && selectedLeft)  ? GUI_COLOR_ACTIVE : (focused && selectedLeft)  ? GUI_COLOR_FOCUSED : GUI_COLOR_PANE]);
+			GUIDrawQuad(boxBounds[0], context->style.colors[(clicked &&  selectedLeft) ? GUI_COLOR_ACTIVE : (focused &&  selectedLeft) ? GUI_COLOR_FOCUSED : GUI_COLOR_PANE]);
 			GUIDrawQuad(boxBounds[1], context->style.colors[(clicked && !selectedLeft) ? GUI_COLOR_ACTIVE : (focused && !selectedLeft) ? GUI_COLOR_FOCUSED : GUI_COLOR_PANE]);
 		}
 		if (flags & GUI_OUTLINE) {
@@ -1294,16 +1262,24 @@ bool TextArea(char* text, const uint32_t max_length, int& carrot, uint32_t flags
 	return ans;
 }
 
-bool SpinnerInternal(int& value, const char* text, uint32_t flags) {
+bool SpinnerInternal(int& value, const char* text, int speed, uint32_t flags) {
 	static const uint32_t LABEL_FLAG_MASK = GUI_VISIBLE | GUI_BACKGROUND | GUI_FOREGROUND | GUI_OUTLINE | GUI_ALIGN_MASK;
 	static const uint32_t BUTTON_FLAG_MASK = GUI_VISIBLE | GUI_ENABLED;
 	static const uint32_t BUTTON_FLAGS = GUI_BACKGROUND | GUI_FOREGROUND | GUI_OUTLINE | GUI_ALIGN_CENTER;
 	static const uint32_t button_flags = BUTTON_FLAGS | (flags & BUTTON_FLAG_MASK);
 
-	const ivec4 bounds = LayoutGetBounds(false);
+	const ivec4 bounds = LayoutGetAbsoluteBounds(false);
 	const int32_t buttonWidth = std::min(bounds.z - bounds.x, (int)context->style.values[GUI_VALUE_TITLEBAR_HEIGHT]);
 	const float buttonWidthProc = (float)buttonWidth/ (float)(bounds.z - bounds.x);
 	const int oldValue = value;
+
+	const bool focused = RECT_CONTAINS_POINT(bounds, GetMousePosition());// && (flags & GUI_ENABLED)) || (flags & GUI_FOCUSED));
+	if (focused) {
+		int32_t mouseWheelDelta = 0;
+		if (GetMouseWheelDelta(&mouseWheelDelta, false)) {
+			value += mouseWheelDelta * speed;
+		}
+	}
 
 	Panel(BorderLayout(GUI_HORIZONTAL, buttonWidthProc, buttonWidthProc, 0)) {
 		value -= Button(GUI_ICON_ARROW_LEFT, button_flags);
@@ -1315,15 +1291,15 @@ bool SpinnerInternal(int& value, const char* text, uint32_t flags) {
 }
 
 
-bool Spinner(int& value, uint32_t flags) {
+bool Spinner(int& value, int speed, uint32_t flags) {
 	char tmp[16];
 	snprintf(tmp, sizeof(tmp), "%d", value);
 
-	return SpinnerInternal(value, tmp, flags);
+	return SpinnerInternal(value, tmp, speed, flags);
 }
 
-bool Spinner(int& value, const char** labels, uint32_t count, uint32_t flags) {
-	if (SpinnerInternal(value, labels[std::clamp<int>(value, 0, count - 1)], flags)) {
+bool Spinner(int& value, const char** labels, uint32_t count, int speed, uint32_t flags) {
+	if (SpinnerInternal(value, labels[std::clamp<int>(value, 0, count - 1)], speed, flags)) {
 		value = std::clamp<int>(value, 0, count - 1);
 		return true;
 	}
@@ -1602,7 +1578,7 @@ Layout BeginTabPanel(const char* names, int& selected, uint32_t margin, uint32_t
 	return ans;
 }
 
-Layout BeginWindow(ivec4* rbounds, const char* title, uint32_t margin, uint32_t* flags) {
+Layout BeginWindow(ivec4* rbounds, const char* title, const char* footer, uint32_t margin, uint32_t* flags) {
 	assert(context != NULL);
 
 	const int32_t TitlebarHeight = context->style.values[GUI_VALUE_TITLEBAR_HEIGHT];
@@ -1665,8 +1641,8 @@ Layout BeginWindow(ivec4* rbounds, const char* title, uint32_t margin, uint32_t*
 
 			// Bottom element
 			Panel(FixSplitLayout(GUI_HORIZONTAL, width - TitlebarHeight, 0)) {
-				//DummyElement();
-				Label("Some status text goes here");
+				Label(footer == nullptr ? "" : footer);
+
 				ivec4 sizeBounds = {bounds.z - TitlebarHeight, bounds.w - TitlebarHeight, bounds.z, bounds.w}; // LayoutGetAbsoluteBounds(true)
 				if (Movable(sizeBounds)) {
 					bounds.z = sizeBounds.z;

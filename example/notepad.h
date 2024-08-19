@@ -1,5 +1,5 @@
-#ifndef __DEMO_TEXT_EDITOR_H__
-#define __DEMO_TEXT_EDITOR_H__
+#ifndef __DEMO_NOTEPAD_H__
+#define __DEMO_NOTEPAD_H__
 
 #include <imgui.h>
 
@@ -34,9 +34,9 @@ void notepadPanel() {
 }
 
 void notepadWindow() {
-	Window(&notepadBounds, notepadTitle, 2, &notepadFlags) {
+	Window(&notepadBounds, notepadTitle, nullptr, 2, &notepadFlags) {
 		notepadPanel();
 	}
 }
 
-#endif // __DEMO_TEXT_EDITOR_H__
+#endif // __DEMO_NOTEPAD_H__

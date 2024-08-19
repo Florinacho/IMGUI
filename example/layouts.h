@@ -52,8 +52,8 @@ void TestBorderLayout() {
 }
 
 void TestGridLayout() {
-	const int COLLUMN_COUNT = 4;
-	const int ROW_COUNT = 4;
+	const int COLLUMN_COUNT = 16;
+	const int ROW_COUNT = 16;
 	const int CELL_COUNT = COLLUMN_COUNT * ROW_COUNT;
 	const int ZERO_PADDING = 0;
 	char text[16];

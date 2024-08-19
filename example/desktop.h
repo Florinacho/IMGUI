@@ -6,14 +6,21 @@
 #include "demo3.h"
 #include "demo4.h"
 #include "calculator.h"
-#include "file_selector.h"
-#include "text_editor.h"
+#include "notepad.h"
 #include "mediaplayer.h"
 #include "theme_editor.h"
+#include "minesweeper.h"
 
-FileSelectorContext fs = {
-	.bounds = {0, 0, 300, 300},
-	.flags = GUI_ENABLED | GUI_BACKGROUND | GUI_FOREGROUND | GUI_OUTLINE | GUI_WINDOW_TITLEBAR | GUI_WINDOW_MOVE | GUI_WINDOW_SIZE,
+enum WindowID {
+	WID_TEST,
+	WID_DEMO,
+	WID_CALC,
+	WID_NOTE,
+	WID_PLYR,
+	WID_THEM,
+	WID_MINE,
+
+	WID_COUNT
 };
 
 static ivec4 testsWindowBounds = {0, 0, 800, 600};
@@ -25,11 +32,14 @@ static uint32_t demosWindowFlags = GUI_FLAGS_WINDOW | GUI_WINDOW_SIZE;
 static ivec4 calculatorWindowBounds = {100, 100, 300, 400};
 static uint32_t calculatorWindowFlags = GUI_FLAGS_WINDOW | GUI_WINDOW_SIZE;
 
+static ivec4 minesweeperWindowBounds = {100, 100, 400, 500};
+static uint32_t minesweeperWindowFlags = GUI_FLAGS_WINDOW | GUI_WINDOW_SIZE;
+
 static bool startMenuVisible = false;
 
 void testsWindow(ivec4* bounds, uint32_t* flags) {
 	static int tab = 0;
-	Window(bounds, "Tests", 0, flags) {
+	Window(bounds, "Tests", "Individual element demo", 0, flags) {
 		TabPanel("Widgets,Layouts,Panels", tab) {
 			switch (tab) {
 			case 0 : TestWidgets();  break;
@@ -42,7 +52,7 @@ void testsWindow(ivec4* bounds, uint32_t* flags) {
 
 void demosWindow(ivec4* bounds, uint32_t* flags) {
 	static int tab = 0;
-	Window(&demosWindowBounds, "Demos", 0, &demosWindowFlags) {
+	Window(&demosWindowBounds, "Demos", "", 0, &demosWindowFlags) {
 		TabPanel("Webpage,X&O,Dialogue,Chat", tab) {
 			switch (tab) {
 			case 0 : demo1Panel(); break;
@@ -59,7 +69,7 @@ bool taskbarWindow() {
 	static uint32_t flags = GUI_VISIBLE | GUI_ENABLED | GUI_BACKGROUND | GUI_FOREGROUND | GUI_OUTLINE;
 	static uint32_t rawTime = 0;
 
-	Window(&bounds, "", 0, &flags) {
+	Window(&bounds, "", nullptr, 0, &flags) {
 		SetLayout(BorderLayout(GUI_HORIZONTAL, 0.15f, 0.09f));
 		if (Button("Apps")) {
 			startMenuVisible = !startMenuVisible;
@@ -67,37 +77,37 @@ bool taskbarWindow() {
 		Panel(GridLayout(10, 1)) {
 			if (testsWindowFlags & GUI_VISIBLE) {
 				if (Button("Tests")) {
-					WMBringIDToFront(0);
+					WMBringIDToFront(WID_TEST);
 				}
 			}
 			if (demosWindowFlags & GUI_VISIBLE) {
 				if (Button("Demos")) {
-					WMBringIDToFront(1);
+					WMBringIDToFront(WID_DEMO);
 				}
 			}
 			if (calculatorWindowFlags & GUI_VISIBLE) {
 				if (Button("Calculator")) {
-					WMBringIDToFront(2);
-				}
-			}
-			if (fs.flags & GUI_VISIBLE) {
-				if (Button("File Selector")) {
-					WMBringIDToFront(3);
+					WMBringIDToFront(WID_CALC);
 				}
 			}
 			if (notepadFlags & GUI_VISIBLE) {
 				if (Button("Notepad")) {
-					WMBringIDToFront(4);
+					WMBringIDToFront(WID_NOTE);
 				}
 			}
 			if (mediaPlayerFlags & GUI_VISIBLE) {
 				if (Button("Video Player")) {
-					WMBringIDToFront(5);
+					WMBringIDToFront(WID_PLYR);
 				}
 			}
 			if (themeEditorFlags & GUI_VISIBLE) {
 				if (Button("Theme")) {
-					WMBringIDToFront(6);
+					WMBringIDToFront(WID_THEM);
+				}
+			}
+			if (minesweeperWindowFlags & GUI_VISIBLE) {
+				if (Button("Minesweeper")) {
+					WMBringIDToFront(WID_MINE);
 				}
 			}
 		}
@@ -120,45 +130,45 @@ void startMenuWindow() {
 	static ivec4 bounds = {0, 400, 200, 690};
 	static uint32_t flags = GUI_VISIBLE | GUI_ENABLED | GUI_BACKGROUND | GUI_FOREGROUND | GUI_OUTLINE;
 
-	Window(&bounds, "", 0, &flags) {
+	Window(&bounds, "", "", 0, &flags) {
 		Panel(FixSplitLayout(GUI_VERTICAL, -30, 0, 0)) {
 			static int offset = 0;
 			ScrollPanel(0, 700, NULL, &offset, 0) {
 				Panel(GridLayout(1, 16, 1)) {
 					if (Button("Tests")) {
 						testsWindowFlags |= GUI_VISIBLE;
-						WMBringIDToFront(0);
+						WMBringIDToFront(WID_TEST);
 						startMenuVisible = false;
 					}
 					if (Button("Demos")) {
 						demosWindowFlags |= GUI_VISIBLE;
-						WMBringIDToFront(1);
+						WMBringIDToFront(WID_DEMO);
 						startMenuVisible = false;
 					}
 					if (Button("Calculator")) {
 						calculatorWindowFlags |= GUI_VISIBLE;
-						WMBringIDToFront(2);
+						WMBringIDToFront(WID_CALC);
 						startMenuVisible = false;
-					}
-					if (Button("File selector")) {
-						startMenuVisible = false;
-						ReadDir(fs, ".", GUI_FS_ALL);
-						WMBringIDToFront(3);
 					}
 					if (Button("Notepad")) {
 						notepadFlags |= GUI_VISIBLE;
 						startMenuVisible = false;
-						WMBringIDToFront(4);
+						WMBringIDToFront(WID_NOTE);
 					}
 					if (Button("Video Player")) {
 						mediaPlayerFlags |= GUI_VISIBLE;
 						startMenuVisible = false;
-						WMBringIDToFront(5);
+						WMBringIDToFront(WID_PLYR);
 					}
 					if (Button("Theme")) {
 						themeEditorFlags |= GUI_VISIBLE;
 						startMenuVisible = false;
-						WMBringIDToFront(6);
+						WMBringIDToFront(WID_THEM);
+					}
+					if (Button("Minesweeper")) {
+						minesweeperWindowFlags |= GUI_VISIBLE;
+						WMBringIDToFront(WID_MINE);
+						startMenuVisible = false;
 					}
 				}
 			}
@@ -178,14 +188,15 @@ void desktopDemoInit() {
 	notepadFlags &= ~GUI_VISIBLE;
 	mediaPlayerFlags &= ~GUI_VISIBLE;
 	themeEditorFlags &= ~GUI_VISIBLE;
+	minesweeperWindowFlags &= ~GUI_VISIBLE;
 
-	WMRegister(&testsWindowBounds, &testsWindowFlags, 0);
-	WMRegister(&demosWindowBounds, &demosWindowFlags, 1);
-	WMRegister(&calculatorWindowBounds, &calculatorWindowFlags, 2);
-	WMRegister(&fs.bounds, &fs.flags, 3);
-	WMRegister(&notepadBounds, &notepadFlags, 4);
-	WMRegister(&mediaPlayerBounds, &mediaPlayerFlags, 5);
-	WMRegister(&themeEditorBounds, &themeEditorFlags, 6);
+	WMRegister(&testsWindowBounds, &testsWindowFlags, WID_TEST);
+	WMRegister(&demosWindowBounds, &demosWindowFlags, WID_DEMO);
+	WMRegister(&calculatorWindowBounds, &calculatorWindowFlags, WID_CALC);
+	WMRegister(&notepadBounds, &notepadFlags, WID_NOTE);
+	WMRegister(&mediaPlayerBounds, &mediaPlayerFlags, WID_PLYR);
+	WMRegister(&themeEditorBounds, &themeEditorFlags, WID_THEM);
+	WMRegister(&minesweeperWindowBounds, &minesweeperWindowFlags, WID_MINE);
 }
 
 void desktopDemo() {
@@ -194,17 +205,21 @@ void desktopDemo() {
 	for (uint32_t windowIndex = 0; windowIndex < gui->count; ++windowIndex) {
 		gui->events_enabled = (startMenuVisible ? false : gui->windows[windowIndex].receiveEvents);
 		switch (gui->windows[windowIndex].id) {
-		case 0 : testsWindow(&testsWindowBounds, &testsWindowFlags); break;
-		case 1 : demosWindow(&demosWindowBounds, &demosWindowFlags); break;
-		case 2 : calculatorWindow(&calculatorWindowBounds, &calculatorWindowFlags); break;
-		case 3 : FileSelectorWindow(fs); break;
-		case 4 : notepadWindow(); break;
-		case 5 : mediaPlayerWindow(); break;
-		case 6 : themeEditorWindow() ; break;
+		case WID_TEST : testsWindow(&testsWindowBounds, &testsWindowFlags); break;
+		case WID_DEMO : demosWindow(&demosWindowBounds, &demosWindowFlags); break;
+		case WID_CALC : calculatorWindow(&calculatorWindowBounds, &calculatorWindowFlags); break;
+		case WID_NOTE : notepadWindow(); break;
+		case WID_PLYR : mediaPlayerWindow(); break;
+		case WID_THEM : themeEditorWindow() ; break;
+		case WID_MINE : minesweeperWindow(&minesweeperWindowBounds, &minesweeperWindowFlags); break;
 		}
 	}
 	gui->events_enabled = true;
 	if (taskbarWindow()) {
-		startMenuWindow();
+		static float proc = 0.5f;
+		SplitPanel(GUI_HORIZONTAL, proc) {
+			startMenuWindow();
+			DummyElement();
+		}
 	}
 }

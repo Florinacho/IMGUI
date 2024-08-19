@@ -365,9 +365,9 @@ bool CheckBox(bool& state, uint32_t flags = GUI_FLAGS_CHECKBOX);
 
 bool Toggle(bool& state, uint32_t flags = GUI_FLAGS_CHECKBOX);
 
-bool Spinner(int& value, uint32_t flags = GUI_FLAGS_SPINNER);
+bool Spinner(int& value, int speed = 1, uint32_t flags = GUI_FLAGS_SPINNER);
 
-bool Spinner(int& value, const char** textValues, uint32_t textCount, uint32_t flags = GUI_FLAGS_SPINNER);
+bool Spinner(int& value, const char** textValues, uint32_t textCount, int speed = 1, uint32_t flags = GUI_FLAGS_SPINNER);
 
 void ProgressBar(float progress, uint32_t flags = GUI_FLAGS_PROGRESSBAR);
 
@@ -383,7 +383,7 @@ bool TextArea(char*, uint32_t, int32_t&, uint32_t = GUI_FLAGS_TEXTBOX, uint32_t 
 
 bool Scrollbar(float& progress, float barProc = 0.1f, GUIOrientation orientation = GUI_VERTICAL, float step = 0.1f);
 
-Layout BeginWindow(ivec4* bounds, const char* title = nullptr, uint32_t padding = 0, uint32_t* flags = nullptr);
+Layout BeginWindow(ivec4* bounds, const char* title = nullptr, const char* footer = nullptr, uint32_t padding = 0, uint32_t* flags = nullptr);
 
 Layout BeginPanel(const Layout& layout = AbsoluteLayout(), uint32_t padding = 0, uint32_t flags = GUI_FLAGS_PANEL);
 

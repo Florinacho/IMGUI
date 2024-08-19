@@ -63,7 +63,7 @@ static ivec4 themeEditorBounds = {200, 200, 600, 500};
 static uint32_t themeEditorFlags = GUI_FLAGS_WINDOW | GUI_WINDOW_SIZE;
 
 void themeEditorWindow() {
-	Window(&themeEditorBounds, "Theme editor", 2, &themeEditorFlags) {
+	Window(&themeEditorBounds, "Theme editor", "Make it pretty :)", 2, &themeEditorFlags) {
 		themeEditorPanel();
 	}
 }

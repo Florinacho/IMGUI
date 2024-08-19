@@ -97,16 +97,7 @@ int main(int argc, char* argv[]) {
 		memset(pixelBuffer, 100, WINDOW_WIDTH * WINDOW_HEIGHT * 4);
 
 		GUIFrame() {
-#if 1
 			desktopDemo();
-#else
-			static ivec4 bounds = {0, 0, 799, 600};
-			static uint32_t flags = GUI_FLAGS_WINDOW | GUI_WINDOW_CLOSE | GUI_WINDOW_SIZE;
-			Window(&bounds, "Test", 0, &flags) {
-			}
-
-			//return 1;
-#endif
 		}
 
 
