@@ -30,12 +30,12 @@ void TestWidgets() {
 			}
 			{
 			static bool value = false;
-			auto bkp = GetLayout()->max;
-			GetLayout()->max = {40, 24};
+			auto bkp = guiGetLayout()->max;
+			guiGetLayout()->max = {40, 24};
 			if (Toggle(value)) {
 				printf("Toggle: %s\n", value ? "true" : "false");
 			}
-			GetLayout()->max = bkp;
+			guiGetLayout()->max = bkp;
 			}
 			DummyElement(3);
 			
@@ -79,7 +79,7 @@ void TestWidgets() {
 			}
 			{
 			static float value = 0.0f;
-			if (Slider(value)) {
+			if (Slider(value, GUI_HORIZONTAL)) {
 				printf("Slider: %f\n", value);
 			}
 			}
@@ -103,7 +103,7 @@ void TestWidgets() {
 			DummyElement(1);
 			{
 			static float value = 0.0f;
-			if (Slider(value)) {
+			if (Slider(value, GUI_VERTICAL)) {
 				printf("Slider: %f\n", value);
 			}
 			}

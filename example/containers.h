@@ -49,7 +49,7 @@ void TestTabPanel() {
 }
 
 void ButtonGrid(int x, int y, int padding = 0) {
-	SetLayout(GridLayout(x, y, padding));
+	guiSetLayout(GridLayout(x, y, padding));
 	char text[32];
 	for (int index = 0; index < x * y; ++index) {
 		snprintf(text, sizeof(text), "Button %d", index);

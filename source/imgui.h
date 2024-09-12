@@ -122,7 +122,17 @@ enum GUIOrientation : uint8_t {
 #define GUI_ICON_ARROW_UP     4
 #define GUI_ICON_SIZE         5
 #define GUI_ICON_CHECK        6
-#define GUI_ICON_CUSTOM       (GUI_ICON_CHECK + 1)
+#define GUI_ICON_CUSTOM       (GUI_ICON_CHECK  + 1)
+#define GUI_ICON_PLAY         (GUI_ICON_CUSTOM + 0)
+#define GUI_ICON_PAUSE        (GUI_ICON_CUSTOM + 1)
+#define GUI_ICON_STOP         (GUI_ICON_CUSTOM + 2)
+#define GUI_ICON_REFRESH      (GUI_ICON_CUSTOM + 3)
+#define GUI_ICON_FILE         (GUI_ICON_CUSTOM + 4)
+#define GUI_ICON_FOLDER       (GUI_ICON_CUSTOM + 5)
+#define GUI_ICON_ALIGN_LEFT   (GUI_ICON_CUSTOM + 6)
+#define GUI_ICON_ALIGN_RIGHT  (GUI_ICON_CUSTOM + 7)
+#define GUI_ICON_ALIGN_UP     (GUI_ICON_CUSTOM + 8)
+#define GUI_ICON_ALIGN_DOWN   (GUI_ICON_CUSTOM + 9)
 
 #define GUI_MAX_KEY_EVENT_COUNT 4
 
@@ -177,15 +187,15 @@ const uint32_t GUI_ALIGN_CENTER        = GUI_ALIGN_TOP | GUI_ALIGN_BOTTOM | GUI_
 
 const uint32_t GUI_ALIGN_MASK          = GUI_ALIGN_TOP | GUI_ALIGN_BOTTOM | GUI_ALIGN_LEFT | GUI_ALIGN_RIGHT;
 
-const uint32_t GUI_FLAGS_LABEL         = GUI_VISIBLE |               GUI_FOREGROUND |                                GUI_ALIGN_CENTER;
+const uint32_t GUI_FLAGS_LABEL         = GUI_VISIBLE |                                GUI_FOREGROUND |               GUI_ALIGN_CENTER;
 const uint32_t GUI_FLAGS_BUTTON        = GUI_VISIBLE | GUI_ENABLED | GUI_BACKGROUND | GUI_FOREGROUND | GUI_OUTLINE | GUI_ALIGN_CENTER;
 const uint32_t GUI_FLAGS_SPINNER       = GUI_VISIBLE | GUI_ENABLED | GUI_BACKGROUND | GUI_FOREGROUND |               GUI_ALIGN_CENTER;
 const uint32_t GUI_FLAGS_CHECKBOX      = GUI_VISIBLE | GUI_ENABLED | GUI_BACKGROUND | GUI_FOREGROUND | GUI_OUTLINE;
 const uint32_t GUI_FLAGS_PROGRESSBAR   = GUI_VISIBLE |               GUI_BACKGROUND | GUI_FOREGROUND | GUI_OUTLINE;
-const uint32_t GUI_FLAGS_SLIDER        = GUI_VISIBLE | GUI_ENABLED | GUI_BACKGROUND | GUI_FOREGROUND;
+const uint32_t GUI_FLAGS_SLIDER        = GUI_VISIBLE | GUI_ENABLED | GUI_BACKGROUND | GUI_FOREGROUND | GUI_OUTLINE;
 const uint32_t GUI_FLAGS_TEXTBOX       = GUI_VISIBLE | GUI_ENABLED | GUI_BACKGROUND | GUI_FOREGROUND | GUI_OUTLINE | GUI_ALIGN_LEFT_TOP;
 const uint32_t GUI_FLAGS_PANEL         = GUI_VISIBLE;
-const uint32_t GUI_FLAGS_WINDOW        = GUI_VISIBLE | GUI_ENABLED | GUI_BACKGROUND | GUI_FOREGROUND | GUI_OUTLINE | GUI_ALIGN_CENTER | GUI_WINDOW_MOVE  | GUI_WINDOW_DECORATION;
+const uint32_t GUI_FLAGS_WINDOW        = GUI_VISIBLE | GUI_ENABLED | GUI_BACKGROUND | GUI_FOREGROUND | GUI_OUTLINE | GUI_ALIGN_CENTER | GUI_WINDOW_MOVE | GUI_WINDOW_DECORATION /*| GUI_WINDOW_SIZE*/;
 
 typedef struct {
 	int32_t x, y;
@@ -246,8 +256,8 @@ typedef void (*DrawCharProc)(GUIContext*, char c, float pos_x, float pos_y, cons
 typedef void (*DrawTextProc)(GUIContext*, const char*, const ivec4&, const color_t&, uint32_t);
 typedef void (*DrawIconProc)(GUIContext*, int32_t, const ivec4&, const color_t&);
 typedef void (*DrawBorderProc)(GUIContext*, const ivec4&, const color_t&);
-typedef ivec2 (*GetCharSizeProc)(GUIContext*, char);
-typedef ivec2 (*GetTextSizeProc)(GUIContext*, const char*, uint32_t);
+typedef ivec2 (*CharSizeProc)(GUIContext*, char);
+typedef ivec2 (*TextSizeProc)(GUIContext*, const char*, uint32_t);
 
 #if defined IMGUI_INCLUDE_WINDOW_MANAGER
 typedef struct WindowInfo {
@@ -269,8 +279,8 @@ typedef struct GUIContext {
 	DrawTextProc drawText;
 	DrawIconProc drawIcon;
 	DrawBorderProc drawBorder;
-	GetCharSizeProc getCharSize;
-	GetTextSizeProc getTextSize;
+	CharSizeProc charSize;
+	TextSizeProc textSize;
 
 	ivec2 mousePosition;
 	ivec2 lastMousePosition;
@@ -286,7 +296,7 @@ typedef struct GUIContext {
 	ivec4 clip;
 	ivec2 extents; // used by drawing as stride
 #if defined IMGUI_INCLUDE_WINDOW_MANAGER
-	static const uint32_t MAX_WINDOW_COUNT = 8;
+	static const uint32_t MAX_WINDOW_COUNT = 16;
 
 	WindowInfo windows[MAX_WINDOW_COUNT];
 	uint32_t count;
@@ -294,118 +304,69 @@ typedef struct GUIContext {
 #endif
 } GUIContext;
 
-void GUIDrawChar(char c, const ivec2& position, const color_t& color);
+// Tools
+void guiDrawChar(char c, const ivec2& position, const color_t& color);
+void guiDrawText(const char* text, const ivec4& bounds, const color_t& color, uint32_t flags = 0);
+void guiDrawLine(const ivec2& begin, const ivec2& end, const color_t& color);
+void guiDrawQuad(const ivec4& bounds, const color_t& color);
+void guiDrawIcon(int32_t id, const ivec4& bounds, const color_t& color);
+void guiDrawBorder(const ivec4& rect, const color_t& color);
 
-void GUIDrawText(const char* text, const ivec4& bounds, const color_t& color, uint32_t flags = 0);
+// Events
+void guiOnCursorEvent(int32_t x, int32_t y);
+void guiOnMouseWheelEvent(int32_t delta);
+void guiOnButtonEvent(uint32_t button, bool status);
+void guiOnKeyEvent(uint32_t key, bool status);
+void guiOnCharEvent(char c);
 
-void GUIDrawLine(const ivec2& begin, const ivec2& end, const color_t& color);
+void guiContextInit(GUIContext* context, const ivec4& viewport);
+void guiSetActiveContext(GUIContext*);
+GUIContext* guiGetActiveContext();
+int32_t guiBeginFrame();
+void guiEndFrame();
 
-void GUIDrawQuad(const ivec4& bounds, const color_t& color);
-
-void GUIDrawIcon(int32_t id, const ivec4& bounds, const color_t& color);
-
-void GUIDrawBorder(const ivec4& rect, const color_t& color);
-
-
-void GUIOnCursorEvent(int32_t x, int32_t y);
-
-void GUIOnMouseWheelEvent(int32_t delta);
-
-void GUIOnButtonEvent(uint32_t button, bool status);
-
-void GUIOnKeyEvent(uint32_t key, bool status);
-
-void GUIOnCharEvent(char c);
-
-
-int32_t GUIBeginFrame();
-
-void GUIEndFrame();
-
-
-void GUIContextInit(GUIContext* context);
-
-void GUISetActiveContext(GUIContext*);
-
-GUIContext* GUIGetActiveContext();
-
-
+// Layouts
 Layout AbsoluteLayout(uint32_t margin = 0);
-
 Layout SplitLayout(GUIOrientation orientation, float weight = 0.5f, uint32_t separator = 0, uint32_t margin = 0);
-
 Layout FixSplitLayout(GUIOrientation orientation, int32_t size, uint32_t separator = 0, uint32_t margin = 0);
-
 Layout BorderLayout(GUIOrientation orientation, float headerWeight = 0.33f, float footerWeight = 0.33f, uint32_t margin = 0);
-
 Layout GridLayout(uint32_t x, uint32_t y, uint32_t margin = 2);
+void guiSetLayout(const Layout& layout);
+Layout* guiGetLayout();
+ivec4 guiLayoutGetAbsoluteBounds(bool advance = true);
 
-void SetLayout(const Layout& layout);
-
-Layout* GetLayout();
-
-ivec4 LayoutGetAbsoluteBounds(bool advance = true);
-
-
+// Widgets
 void DummyElement(uint32_t count = 1);
-
 void Label(const char* text, uint32_t flags = GUI_FLAGS_LABEL);
-
 void Label(int32_t iconID, uint32_t flags = GUI_FLAGS_LABEL);
-
 bool Button(const char* text, uint32_t flags = GUI_FLAGS_BUTTON);
-
 bool Button(int32_t iconID, uint32_t flags = GUI_FLAGS_BUTTON);
-
-bool Button(int32_t iconID, uint32_t* flags);
-
 bool Button(int32_t inconID, const char* text, uint32_t flags = GUI_FLAGS_BUTTON);
-
 bool CheckBox(bool& state, uint32_t flags = GUI_FLAGS_CHECKBOX);
-
 bool Toggle(bool& state, uint32_t flags = GUI_FLAGS_CHECKBOX);
-
-bool Spinner(int& value, int speed = 1, uint32_t flags = GUI_FLAGS_SPINNER);
-
-bool Spinner(int& value, const char** textValues, uint32_t textCount, int speed = 1, uint32_t flags = GUI_FLAGS_SPINNER);
-
+bool Spinner(int& value, int32_t step = 1, uint32_t flags = GUI_FLAGS_SPINNER);
+bool Spinner(int& value, const char** textValues, uint32_t textCount, int32_t step = 1, uint32_t flags = GUI_FLAGS_SPINNER);
 void ProgressBar(float progress, uint32_t flags = GUI_FLAGS_PROGRESSBAR);
-
-bool Slider(float& value, uint32_t flags = GUI_FLAGS_SLIDER);
-
-bool Slider(float& value, uint32_t boxLength, GUIOrientation orientation, uint32_t flags = GUI_FLAGS_SLIDER);
-
+bool Slider(float& value, GUIOrientation orientation, uint32_t flags = GUI_FLAGS_SLIDER);
 bool RangeSlider(float& minValue, float& maxValue, GUIOrientation = GUI_VERTICAL, uint32_t flags = GUI_FLAGS_SLIDER);
-
+bool Scrollbar(float& progress, float barProc = 0.1f, GUIOrientation orientation = GUI_VERTICAL, float step = 0.1f);
 bool TextBox(char* text, uint32_t textLength, int32_t& carrot, uint32_t flags = GUI_FLAGS_TEXTBOX, uint32_t padding = 3);
-
 bool TextArea(char*, uint32_t, int32_t&, uint32_t = GUI_FLAGS_TEXTBOX, uint32_t padding = 2);
 
-bool Scrollbar(float& progress, float barProc = 0.1f, GUIOrientation orientation = GUI_VERTICAL, float step = 0.1f);
+// Containers
+Layout guiBeginWindow(ivec4* bounds, const char* title = nullptr, const char* footer = nullptr, uint32_t padding = 0, uint32_t* flags = nullptr);
+Layout guiBeginPanel(const Layout& layout = AbsoluteLayout(), uint32_t padding = 0, uint32_t flags = GUI_FLAGS_PANEL);
+Layout guiBeginSplitPanel(GUIOrientation orientation, float& , uint32_t padding = 0, uint32_t flags = GUI_FLAGS_PANEL);
+Layout guiBeginTabPanel(const char* names, int& selectedTab, uint32_t padding = 0, uint32_t flags = 0);
+Layout guiBeginScrollPanel(int, int, int* = nullptr, int* = nullptr, uint32_t padding = 0, uint32_t flags = 0);
+void guiEndPanel(Layout* backup);
 
-Layout BeginWindow(ivec4* bounds, const char* title = nullptr, const char* footer = nullptr, uint32_t padding = 0, uint32_t* flags = nullptr);
-
-Layout BeginPanel(const Layout& layout = AbsoluteLayout(), uint32_t padding = 0, uint32_t flags = GUI_FLAGS_PANEL);
-
-Layout BeginSplitPanel(GUIOrientation orientation, float& , uint32_t padding = 0, uint32_t flags = GUI_FLAGS_PANEL);
-
-Layout BeginTabPanel(const char* names, int& selectedTab, uint32_t padding = 0, uint32_t flags = 0);
-
-Layout BeginScrollPanel(int, int, int* = nullptr, int* = nullptr, uint32_t padding = 0, uint32_t flags = 0);
-
-void EndPanel(Layout* backup);
-
-#define GUIFrame(...)  for(int32_t ___tmp = GUIBeginFrame(__VA_ARGS__); !___tmp; (___tmp += 1), GUIEndFrame())
-
-#define Panel(...)  for(Layout ___tmp = BeginPanel(__VA_ARGS__); ___tmp.run_statement; EndPanel(&___tmp))
-
-#define SplitPanel(...)  for(Layout ___tmp = BeginSplitPanel(__VA_ARGS__); ___tmp.run_statement; EndPanel(&___tmp))
-
-#define TabPanel(...)  for(Layout ___tmp = BeginTabPanel(__VA_ARGS__); ___tmp.run_statement; EndPanel(&___tmp))
-
-#define ScrollPanel(...)  for(Layout ___tmp = BeginScrollPanel(__VA_ARGS__); ___tmp.run_statement; EndPanel(&___tmp))
-
-#define Window(...)  for(Layout ___tmp = BeginWindow(__VA_ARGS__); ___tmp.run_statement; EndPanel(&___tmp))
+#define GUIFrame(...)     for(int32_t __tmp = guiBeginFrame(__VA_ARGS__);       !__tmp; (__tmp += 1), guiEndFrame())
+#define Panel(...)        for(Layout ___tmp = guiBeginPanel(__VA_ARGS__);       ___tmp.run_statement; guiEndPanel(&___tmp))
+#define SplitPanel(...)   for(Layout ___tmp = guiBeginSplitPanel(__VA_ARGS__);  ___tmp.run_statement; guiEndPanel(&___tmp))
+#define TabPanel(...)     for(Layout ___tmp = guiBeginTabPanel(__VA_ARGS__);    ___tmp.run_statement; guiEndPanel(&___tmp))
+#define ScrollPanel(...)  for(Layout ___tmp = guiBeginScrollPanel(__VA_ARGS__); ___tmp.run_statement; guiEndPanel(&___tmp))
+#define Window(...)       for(Layout ___tmp = guiBeginWindow(__VA_ARGS__);      ___tmp.run_statement; guiEndPanel(&___tmp))
 
 #if defined (IMGUI_INCLUDE_WINDOW_MANAGER)
 void WMBringIndexToFront(int32_t selected);
