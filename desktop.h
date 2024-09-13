@@ -1,6 +1,7 @@
-#include "widgets.h"
-#include "layouts.h"
-#include "containers.h"
+#ifndef __DEMO_DESKTOP_H__
+#define __DEMO_DESKTOP_H__
+
+#include "tests.h"
 #include "demos.h"
 
 enum WindowID {
@@ -166,3 +167,5 @@ void desktopDemo() {
 	}
 	gui->events_enabled = true;
 }
+
+#endif // __DEMO_DESKTOP_H__

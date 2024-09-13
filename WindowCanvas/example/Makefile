@@ -6,10 +6,10 @@ else
 	OUTPUT=../bin/main.out
 endif
 
-INCLUDE=../source ../source/WindowCanvas/source
-LIB_DIRS=../lib ../source/WindowCanvas/lib
-LIB_FILES=wcanvas imgui
-C_FLAGS=-O3 -g3 -Wall
+INCLUDE=../source
+LIB_DIRS=../lib
+LIB_FILES=wcanvas
+C_FLAGS=-O3 -g3 -Wall -Wextra 
 L_FLAGS=
 C_FILES=main.cpp
 
@@ -24,17 +24,17 @@ clean:
 
 rebuild: clean build
 
-libwcanvas.a:
-	make -C ../source/WindowCanvas
+run: $(OUTPUT)
+	./$(OUTPUT)
 
 %.o: %.cpp
 	$(CC) $(C_FLAGS) -c $< -o $@
 
-%.out: libwcanvas.a $(L_FILES)
+%.out: $(L_FILES)
 	$(CC) $(L_FILES) $(L_FLAGS) -o $(OUTPUT)
 	chmod +xr $(OUTPUT)
 	
-%.exe: libwcanvas.a $(L_FILES)
+%.exe: $(L_FILES)
 	$(CC) $(L_FILES) $(L_FLAGS) -o $(OUTPUT)
 	
 .PHONY:
