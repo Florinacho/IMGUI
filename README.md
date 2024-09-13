@@ -2,7 +2,7 @@
 
 ## Example:
 ```
-Panel(SplitLayout(GUI_HORIZONTAL)) {
+Panel(SplitLayout(GUI_VERTICAL, 0.85f)) {
     static char text[64];
     static int carrot = -1;
 
@@ -13,6 +13,9 @@ Panel(SplitLayout(GUI_HORIZONTAL)) {
     }
 }
 ```
+
+![image](https://github.com/user-attachments/assets/227c2d4c-94e2-4ec1-8e1f-bb6a49fce9e0)
+
 
 ## Widgets supported:
 - Label
