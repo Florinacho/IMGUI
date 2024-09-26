@@ -370,28 +370,15 @@ void minesweeperPanel() {
 
 /*** Notepad ***/
 void notepadPanel() {
-	static int carrot = -1;
-	static uint32_t alignment = 0;
-	static uint32_t flags = GUI_VISIBLE | GUI_ENABLED | GUI_BACKGROUND | GUI_FOREGROUND | GUI_OUTLINE | GUI_MULTILINE;
-	static char notepadText[256] = "Hello World!\n:)";
+	Panel(SplitLayout(GUI_VERTICAL, 0.85)) {
+		static char text[64];
+		static int carrot = -1;
 
-	Panel(FixSplitLayout(GUI_VERTICAL, 22, 0)) {
-		Panel(GridLayout(4, 1, 0)) {
-			uint32_t buttonFlags = 0;
+		TextBox(text, sizeof(text), carrot);
 
-			buttonFlags = GUI_FLAGS_BUTTON | ((alignment & GUI_ALIGN_LEFT  ) ? GUI_CLICKED : 0);
-			if (Button(GUI_ICON_ARROW_LEFT,  buttonFlags)) alignment ^= GUI_ALIGN_LEFT;
-
-			buttonFlags = GUI_FLAGS_BUTTON | ((alignment & GUI_ALIGN_RIGHT ) ? GUI_CLICKED : 0);
-			if (Button(GUI_ICON_ARROW_RIGHT, buttonFlags)) alignment ^= GUI_ALIGN_RIGHT;
-
-			buttonFlags = GUI_FLAGS_BUTTON | ((alignment & GUI_ALIGN_TOP   ) ? GUI_CLICKED : 0);
-			if (Button(GUI_ICON_ARROW_UP,    buttonFlags)) alignment ^= GUI_ALIGN_TOP;
-
-			buttonFlags = GUI_FLAGS_BUTTON | ((alignment & GUI_ALIGN_BOTTOM) ? GUI_CLICKED : 0);
-			if (Button(GUI_ICON_ARROW_DOWN,  buttonFlags)) alignment ^= GUI_ALIGN_BOTTOM;
+		if (Button("print")) {
+			printf("Text: %s\n", text);
 		}
-		TextArea(notepadText, sizeof(notepadText), carrot, flags | alignment);
 	}
 }
 
