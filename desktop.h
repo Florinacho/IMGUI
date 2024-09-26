@@ -46,7 +46,7 @@ static WindowInfo2 windows[] = {
 		{0, 0, 50, 50},
 		"", "",
 		startPanel,
-		GUI_ENABLED | GUI_BACKGROUND | GUI_FOREGROUND | GUI_OUTLINE,
+		GUI_ENABLED | GUI_BACKGROUND | GUI_FOREGROUND | GUI_OUTLINE | GUI_VISIBLE,
 	},
 	{
 		{0, 0, 150, 720},
@@ -111,37 +111,27 @@ static WindowInfo2 windows[] = {
 };
 
 void startPanel() {
-	static bool panelVisible = true;
-
-	if (panelVisible) {
+	if (windows[WID_PAN2].flags & GUI_VISIBLE) {
 			Panel(GridLayout(1, 600 / 25)) {
 				for (uint32_t windowID = WID_TEST; windowID < WID_COUNT; ++windowID) {
+					bool visible = (windows[windowID].flags & GUI_VISIBLE);
+
 					Panel(SplitLayout(GUI_HORIZONTAL, 0.8f)) {
 						Label(windows[windowID].title, GUI_VISIBLE | GUI_FOREGROUND | GUI_ALIGN_LEFT);
-						{
-						bool value = (windows[windowID].flags & GUI_VISIBLE);
-						Toggle(value);
-						if (value) {
+						Toggle(visible);
+						if (visible) {
 							windows[windowID].flags |= GUI_VISIBLE;
 						} else {
 							windows[windowID].flags &= ~GUI_VISIBLE;
 						}
-						}
 					}
-				}
-				if (Button("<<")) {
-					panelVisible = false;
-					windows[WID_PAN1].flags |=  GUI_VISIBLE;
-					windows[WID_PAN2].flags &= ~GUI_VISIBLE;
 				}
 			}
 	} else {
 		if (Button(">>")) {
-			panelVisible = true;
-			windows[WID_PAN1].flags &= ~GUI_VISIBLE;
 			windows[WID_PAN2].flags |=  GUI_VISIBLE;
 			WMBringIDToFront(WID_PAN2);
-			guiGetActiveContext()->modal = WID_PAN2;
+			guiGetContext()->windowManager.modal = WID_PAN2;
 		}
 	}
 }
@@ -151,21 +141,23 @@ void desktopDemoInit() {
 		WMRegister(&windows[windowID].bounds, &windows[windowID].flags, windowID);
 	}
 	WMBringIDToFront(WID_PAN2);
-	guiGetActiveContext()->modal = WID_PAN2;
+	guiGetContext()->windowManager.modal = WID_PAN2;
+	guiGetContext()->windowManager.flags = WMF_NONE;
 }
 
 void desktopDemo() {
-	GUIContext* gui = guiGetActiveContext();
+	GUIContext* gui = guiGetContext();
+	const bool events_enabled_backup = gui->events_enabled;
 
-	for (uint32_t windowIndex = 0; windowIndex < gui->count; ++windowIndex) {
-		gui->events_enabled = gui->windows[windowIndex].receiveEvents;
-		uint32_t windowID = gui->windows[windowIndex].id;
+	for (uint32_t windowIndex = 0; windowIndex < gui->windowManager.count; ++windowIndex) {
+		gui->events_enabled = gui->windowManager.windows[windowIndex].receiveEvents;
+		uint32_t windowID = gui->windowManager.windows[windowIndex].id;
 		uint32_t padding = 0;
 		Window(&windows[windowID].bounds, windows[windowID].title, windows[windowID].footer, padding, &windows[windowID].flags) {
 			windows[windowID].proc();
 		}
 	}
-	gui->events_enabled = true;
+	gui->events_enabled = events_enabled_backup;
 }
 
 #endif // __DEMO_DESKTOP_H__

@@ -370,15 +370,28 @@ void minesweeperPanel() {
 
 /*** Notepad ***/
 void notepadPanel() {
-	Panel(SplitLayout(GUI_VERTICAL, 0.85)) {
-		static char text[64];
-		static int carrot = -1;
+	static int carrot = -1;
+	static uint32_t alignment = 0;
+	static uint32_t flags = GUI_VISIBLE | GUI_ENABLED | GUI_BACKGROUND | GUI_FOREGROUND | GUI_OUTLINE | GUI_MULTILINE;
+	static char notepadText[256] = "Hello World!\n:)";
 
-		TextBox(text, sizeof(text), carrot);
+	Panel(FixSplitLayout(GUI_VERTICAL, 22, 0)) {
+		Panel(GridLayout(4, 1, 0)) {
+			uint32_t buttonFlags = 0;
 
-		if (Button("print")) {
-			printf("Text: %s\n", text);
+			buttonFlags = GUI_FLAGS_BUTTON | ((alignment & GUI_ALIGN_LEFT  ) ? GUI_CLICKED : 0);
+			if (Button(GUI_ICON_ARROW_LEFT,  buttonFlags)) alignment ^= GUI_ALIGN_LEFT;
+
+			buttonFlags = GUI_FLAGS_BUTTON | ((alignment & GUI_ALIGN_RIGHT ) ? GUI_CLICKED : 0);
+			if (Button(GUI_ICON_ARROW_RIGHT, buttonFlags)) alignment ^= GUI_ALIGN_RIGHT;
+
+			buttonFlags = GUI_FLAGS_BUTTON | ((alignment & GUI_ALIGN_TOP   ) ? GUI_CLICKED : 0);
+			if (Button(GUI_ICON_ARROW_UP,    buttonFlags)) alignment ^= GUI_ALIGN_TOP;
+
+			buttonFlags = GUI_FLAGS_BUTTON | ((alignment & GUI_ALIGN_BOTTOM) ? GUI_CLICKED : 0);
+			if (Button(GUI_ICON_ARROW_DOWN,  buttonFlags)) alignment ^= GUI_ALIGN_BOTTOM;
 		}
+		TextArea(notepadText, sizeof(notepadText), carrot, flags | alignment);
 	}
 }
 
@@ -386,7 +399,7 @@ void notepadPanel() {
 /*** Settings ***/
 void colorEntry(const char* label, color_t& color) {	
 	auto u8Slider = [](uint8_t& value) {
-		GUIContext* gui = guiGetActiveContext();
+		GUIContext* gui = guiGetContext();
 		const ivec4 bounds = guiLayoutGetAbsoluteBounds(false);
 		bool ans = false;
 		char tmp[4];
@@ -397,7 +410,7 @@ void colorEntry(const char* label, color_t& color) {
 			ans = true;
 		}
 		snprintf(tmp, 4, "%.hhu", value);
-		guiDrawText(tmp, bounds, gui->style.colors[GUI_COLOR_TEXT], GUI_ALIGN_CENTER);
+		guiDrawText(tmp, bounds, gui->skin.colors[GUI_COLOR_TEXT], GUI_ALIGN_CENTER);
 		return ans;
 	};
 	
@@ -415,26 +428,26 @@ void colorEntry(const char* label, color_t& color) {
 }
 
 void settingsPanel() {
-	GUIContext* gui = guiGetActiveContext();
+	GUIContext* gui = guiGetContext();
 	Panel(GridLayout(1, 9)) {
-		colorEntry("Text",     gui->style.colors[GUI_COLOR_TEXT]);
-		colorEntry("Disabled", gui->style.colors[GUI_COLOR_TEXT_DISABLED]);
-		colorEntry("Border",   gui->style.colors[GUI_COLOR_BORDER]);
-		colorEntry("Panel",    gui->style.colors[GUI_COLOR_PANEL]);
-		colorEntry("Titlebar", gui->style.colors[GUI_COLOR_TITLEBAR]);
-		colorEntry("Pane",     gui->style.colors[GUI_COLOR_PANE]);
-		colorEntry("Focused",  gui->style.colors[GUI_COLOR_FOCUSED]);
-		colorEntry("Active",   gui->style.colors[GUI_COLOR_ACTIVE]);
+		colorEntry("Text",     gui->skin.colors[GUI_COLOR_TEXT]);
+		colorEntry("Disabled", gui->skin.colors[GUI_COLOR_TEXT_DISABLED]);
+		colorEntry("Border",   gui->skin.colors[GUI_COLOR_BORDER]);
+		colorEntry("Panel",    gui->skin.colors[GUI_COLOR_PANEL]);
+		colorEntry("Titlebar", gui->skin.colors[GUI_COLOR_TITLEBAR]);
+		colorEntry("Pane",     gui->skin.colors[GUI_COLOR_PANE]);
+		colorEntry("Focused",  gui->skin.colors[GUI_COLOR_FOCUSED]);
+		colorEntry("Active",   gui->skin.colors[GUI_COLOR_ACTIVE]);
 
 		if (Button("Reset")) {
-			gui->style.colors[GUI_COLOR_TEXT]          = {230, 230, 230, 255};
-			gui->style.colors[GUI_COLOR_TEXT_DISABLED] = {150, 150, 150, 255};
-			gui->style.colors[GUI_COLOR_TITLEBAR]      = { 25,  25,  25, 200};
-			gui->style.colors[GUI_COLOR_PANEL]         = { 50,  50,  50, 255};
-			gui->style.colors[GUI_COLOR_PANE]          = { 75,  75,  75, 255};
-			gui->style.colors[GUI_COLOR_FOCUSED]       = {110, 110, 120, 255};
-			gui->style.colors[GUI_COLOR_ACTIVE]        = { 75,  75, 255, 255};
-			gui->style.colors[GUI_COLOR_BORDER]        = { 25,  25,  25, 255};
+			gui->skin.colors[GUI_COLOR_TEXT]          = {230, 230, 230, 255};
+			gui->skin.colors[GUI_COLOR_TEXT_DISABLED] = {150, 150, 150, 255};
+			gui->skin.colors[GUI_COLOR_TITLEBAR]      = { 25,  25,  25, 200};
+			gui->skin.colors[GUI_COLOR_PANEL]         = { 50,  50,  50, 255};
+			gui->skin.colors[GUI_COLOR_PANE]          = { 75,  75,  75, 255};
+			gui->skin.colors[GUI_COLOR_FOCUSED]       = {110, 110, 120, 255};
+			gui->skin.colors[GUI_COLOR_ACTIVE]        = { 75,  75, 255, 255};
+			gui->skin.colors[GUI_COLOR_BORDER]        = { 25,  25,  25, 255};
 		}
 	}
 }
@@ -532,7 +545,7 @@ void ticTacToePanel() {
 				break;
 			}
 		}
-		ivec2 mpos = guiGetActiveContext()->mousePosition;
+		ivec2 mpos = guiGetContext()->mousePosition;
 		mpos.x += 15;
 		mpos.y += 15;
 		guiDrawText((((state - 1) % 2) ? "O" : "X"), {mpos.x, mpos.y, mpos.x + 15, mpos.y + 15}, {255, 255, 255, 255}, 0);

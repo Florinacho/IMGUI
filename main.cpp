@@ -150,7 +150,7 @@ int main(int argc, char* argv[]) {
 		return 1;
 	}
 
-	// Setup GUI
+	// Init GUI
 	GUIContext gui;
 	guiContextInit(&gui, {0, 0, (int32_t)WINDOW_WIDTH, (int32_t)WINDOW_HEIGHT});
 	gui.drawLine = drawLine;
@@ -168,7 +168,7 @@ int main(int argc, char* argv[]) {
 	gui.keyMap[GUI_KEY_END   ] = 0x73;
 	gui.keyMap[GUI_KEY_DOWN  ] = 0x74;
 	gui.keyMap[GUI_KEY_DELETE] = 0x77;
-	guiSetActiveContext(&gui);
+	guiSetContext(&gui);
 
 	// Init demos
 	desktopDemoInit();
@@ -209,13 +209,12 @@ int main(int argc, char* argv[]) {
 		}
 
 		memset(pixelBuffer, 100, WINDOW_WIDTH * WINDOW_HEIGHT * 4);
-
 		GUIFrame() {
 			desktopDemo();
 		}
-
 		canvas.blit();
 	}
+
 	freeTTFFont(&font);
 	return 0;
 }
