@@ -107,24 +107,21 @@ Pane and Panels are both containers but Panes provide additional functionality n
 #define GUI_KEY_DOWN    0x7
 #define GUI_KEY_COUNT   0x8
 
-#define GUI_ICON_CLOSE        0x0
-#define GUI_ICON_ARROW_LEFT   0x1
-#define GUI_ICON_ARROW_RIGHT  0x2
-#define GUI_ICON_ARROW_DOWN   0x3
-#define GUI_ICON_ARROW_UP     0x4
-#define GUI_ICON_SIZE         0x5
-#define GUI_ICON_CHECK        0x6
-#define GUI_ICON_CUSTOM       (GUI_ICON_CHECK  + 1)
-#define GUI_ICON_PLAY         (GUI_ICON_CUSTOM + 0)
-#define GUI_ICON_PAUSE        (GUI_ICON_CUSTOM + 1)
-#define GUI_ICON_STOP         (GUI_ICON_CUSTOM + 2)
-#define GUI_ICON_REFRESH      (GUI_ICON_CUSTOM + 3)
-#define GUI_ICON_FILE         (GUI_ICON_CUSTOM + 4)
-#define GUI_ICON_FOLDER       (GUI_ICON_CUSTOM + 5)
-#define GUI_ICON_ALIGN_LEFT   (GUI_ICON_CUSTOM + 6)
-#define GUI_ICON_ALIGN_RIGHT  (GUI_ICON_CUSTOM + 7)
-#define GUI_ICON_ALIGN_UP     (GUI_ICON_CUSTOM + 8)
-#define GUI_ICON_ALIGN_DOWN   (GUI_ICON_CUSTOM + 9)
+#define GUI_ICON_CLOSE        0x00
+#define GUI_ICON_ARROW_LEFT   0x01
+#define GUI_ICON_ARROW_RIGHT  0x02
+#define GUI_ICON_ARROW_DOWN   0x03
+#define GUI_ICON_ARROW_UP     0x04
+#define GUI_ICON_SIZE         0x05
+#define GUI_ICON_CHECK        0x06
+#define GUI_ICON_PLAY         0x07
+#define GUI_ICON_PAUSE        0x08
+#define GUI_ICON_STOP         0x09
+#define GUI_ICON_REFRESH      0x0A
+#define GUI_ICON_FILE         0x0B
+#define GUI_ICON_FOLDER       0x0C
+#define GUI_ICON_HOME         0x0D
+#define GUI_ICON_CUSTOM       0x0D
 
 #define GUI_MAX_KEY_EVENT_COUNT 4
 
@@ -205,17 +202,15 @@ typedef struct Layout {
 	union {
 		struct {
 			ivec2 count;
-			ivec2 cellSize;  // cached data
+			ivec2 size;  // cached data
 		} grid;
 		struct {
 			float weight;
-			uint8_t separator;
 			uint8_t orientation;
+			uint8_t separator;
 		} split;
 		struct {
-			float header;
-			float body;
-			float footer;
+			float weight[3];
 			uint8_t orientation;
 		} border;
 	};
@@ -692,7 +687,8 @@ bool Movable(ivec4& bounds) {
 }
 
 void guiContextInit(GUIContext* context, const ivec4& viewport) {
-	context->layout = GridLayout(1, 1, 0);
+	context->layout = AbsoluteLayout();
+	
 	context->viewport = viewport;
 		
 	context->drawLine = NULL;
@@ -841,18 +837,18 @@ ivec4 guiLayoutGetBounds(bool advance) {
 		case 0 : // header
 			ans.x = 0;
 			ans.y = 0;
-			ans.z = vertical ? width : ((float)width * __imgui_context->layout.border.header + 0.5f);
-			ans.w = vertical ? ((float)height * __imgui_context->layout.border.header + 0.5f) : height;
+			ans.z = vertical ? width : ((float)width * __imgui_context->layout.border.weight[0] + 0.5f);
+			ans.w = vertical ? ((float)height * __imgui_context->layout.border.weight[0] + 0.5f) : height;
 			break;
 		case 1 : // body
-			ans.x = vertical ? 0 : ((float)width * __imgui_context->layout.border.header + 0.5f);
-			ans.y = vertical ? ((float)height * __imgui_context->layout.border.header + 0.5f) : 0;
-			ans.z = vertical ? width : ans.x + ((float)width * __imgui_context->layout.border.body + 0.5f);
-			ans.w = vertical ? ans.y + ((float)height * __imgui_context->layout.border.body + 0.5f) : height;
+			ans.x = vertical ? 0 : ((float)width * __imgui_context->layout.border.weight[0] + 0.5f);
+			ans.y = vertical ? ((float)height * __imgui_context->layout.border.weight[0] + 0.5f) : 0;
+			ans.z = vertical ? width : ans.x + ((float)width * __imgui_context->layout.border.weight[1] + 0.5f);
+			ans.w = vertical ? ans.y + ((float)height * __imgui_context->layout.border.weight[1] + 0.5f) : height;
 			break;
 		case 2 : // footer
-			ans.x = vertical ? 0 : width - ((float)width * __imgui_context->layout.border.footer + 0.5f);
-			ans.y = vertical ? height - ((float)height * __imgui_context->layout.border.footer + 0.5f) : 0;
+			ans.x = vertical ? 0 : width - ((float)width * __imgui_context->layout.border.weight[2] + 0.5f);
+			ans.y = vertical ? height - ((float)height * __imgui_context->layout.border.weight[2] + 0.5f) : 0;
 			ans.z = width;
 			ans.w = height;
 			break;
@@ -873,10 +869,10 @@ ivec4 guiLayoutGetBounds(bool advance) {
 		{
 		const int32_t indexX = (__imgui_context->layout.elementIndex % __imgui_context->layout.grid.count.x) % __imgui_context->layout.grid.count.x;
 		const int32_t indexY = (__imgui_context->layout.elementIndex / __imgui_context->layout.grid.count.x) % __imgui_context->layout.grid.count.y;
-		ans.x = (indexX + 0) * __imgui_context->layout.grid.cellSize.x,
-		ans.y = (indexY + 0) * __imgui_context->layout.grid.cellSize.y,
-		ans.z = (indexX + 1) * __imgui_context->layout.grid.cellSize.x,
-		ans.w = (indexY + 1) * __imgui_context->layout.grid.cellSize.y;
+		ans.x = (indexX + 0) * __imgui_context->layout.grid.size.x,
+		ans.y = (indexY + 0) * __imgui_context->layout.grid.size.y,
+		ans.z = (indexX + 1) * __imgui_context->layout.grid.size.x,
+		ans.w = (indexY + 1) * __imgui_context->layout.grid.size.y;
 
 		const float width  = std::min(ans.z - ans.x, (int)__imgui_context->layout.max.x);
 		const float height = std::min(ans.w - ans.y, (int)__imgui_context->layout.max.y);
@@ -924,8 +920,8 @@ Layout GridLayout(uint32_t x, uint32_t y, uint32_t margin) {
 	ans.type = GUI_LAYOUT_GRID;
 	ans.max.x = 0x1FFFFFFF;
 	ans.max.y = 0x1FFFFFFF;
-	ans.grid.cellSize.x = 1;
-	ans.grid.cellSize.y = 1;
+	ans.grid.size.x = 1;
+	ans.grid.size.y = 1;
 	ans.margin = margin;
 	ans.grid.count.x = std::max<int>(x, 1);
 	ans.grid.count.y = std::max<int>(y, 1);
@@ -963,13 +959,16 @@ Layout FixSplitLayout(uint8_t orientation, int32_t size, uint32_t separator, uin
 }
 
 Layout BorderLayout(uint8_t orientation, float headerWeight, float footerWeight, uint32_t margin) {
+	assert((headerWeight + footerWeight) <= 1.0f);
+
 	Layout ans = {};
 	ans.type = GUI_LAYOUT_BORDER;
 	ans.max.x = 0x1FFFFFFF;
 	ans.max.y = 0x1FFFFFFF;
 	ans.margin = margin;
-	ans.border.header = headerWeight;
-	ans.border.footer = footerWeight;
+	ans.border.weight[0] = headerWeight;
+	ans.border.weight[1] = 1.0f - (headerWeight + footerWeight);
+	ans.border.weight[2] = footerWeight;
 	ans.border.orientation = orientation;
 	return ans;
 }
@@ -1637,7 +1636,7 @@ Layout guiBeginPanel(const Layout& layout, uint32_t padding, uint32_t flags) {
 	__imgui_context->layout.backup_clip = __imgui_context->clip;
 
 	__imgui_context->viewport = guiLayoutGetAbsoluteBounds(true);
-	const int32_t width = __imgui_context->viewport.z - __imgui_context->viewport.x;
+	const int32_t width  = __imgui_context->viewport.z - __imgui_context->viewport.x;
 	const int32_t height = __imgui_context->viewport.w - __imgui_context->viewport.y;
 
 	Layout ans = __imgui_context->layout;
@@ -1646,12 +1645,10 @@ Layout guiBeginPanel(const Layout& layout, uint32_t padding, uint32_t flags) {
 		return ans;
 	}
 	
-	if (padding) {
-		__imgui_context->viewport.x = __imgui_context->viewport.x + padding;
-		__imgui_context->viewport.y = __imgui_context->viewport.y + padding;
-		__imgui_context->viewport.z = __imgui_context->viewport.z - padding;
-		__imgui_context->viewport.w = __imgui_context->viewport.w - padding;
-	}
+	__imgui_context->viewport.x += padding;
+	__imgui_context->viewport.y += padding;
+	__imgui_context->viewport.z -= padding;
+	__imgui_context->viewport.w -= padding;
 
 	if (RectGetArea(__imgui_context->clip) > 0) {
 		__imgui_context->clip = {
@@ -1683,17 +1680,16 @@ Layout guiBeginSplitPanel(uint8_t orientation, float& weight, uint32_t padding, 
 	const ivec4 absoluteBounds = __imgui_context->viewport; // DAFUQ ?!
 	const int32_t width  = absoluteBounds.z - absoluteBounds.x;
 	const int32_t height = absoluteBounds.w - absoluteBounds.y;
-	const int32_t halfPadding = SEPARATOR / 2;
 	ivec4 separatorBounds = absoluteBounds;
 
 	switch (orientation) {
 	case GUI_VERTICAL :
 		separatorBounds.y += (float)(height - SEPARATOR) * weight;
-		separatorBounds.w = separatorBounds.y + SEPARATOR;
+		separatorBounds.w  = separatorBounds.y + SEPARATOR;
 		break;
 	case GUI_HORIZONTAL :
 		separatorBounds.x += (float)(width - SEPARATOR) * weight;
-		separatorBounds.z = separatorBounds.x + SEPARATOR;
+		separatorBounds.z  = separatorBounds.x + SEPARATOR;
 		break;
 	default:
 		assert(false);
@@ -1705,14 +1701,13 @@ Layout guiBeginSplitPanel(uint8_t orientation, float& weight, uint32_t padding, 
 	if (clicked) {
 		switch (orientation) {
 		case GUI_VERTICAL :
-			weight = (float)(GetMousePosition().y - halfPadding - absoluteBounds.y) / (float)(height - SEPARATOR);
+			weight = (float)(GetMousePosition().y - SEPARATOR / 2 - absoluteBounds.y) / (float)(height - SEPARATOR);
 			break;
 		case GUI_HORIZONTAL:
-			weight = (float)(GetMousePosition().x - halfPadding - absoluteBounds.x) / (float)(width - SEPARATOR);
-			
+			weight = (float)(GetMousePosition().x - SEPARATOR / 2 - absoluteBounds.x) / (float)(width - SEPARATOR);
 			break;
 		}
-		weight = std::clamp(weight, 0.01f, 0.99f);
+		weight = std::clamp<float>(weight, 0.01f, 0.99f);
 	}
 	guiDrawQuad(separatorBounds, __imgui_context->skin.colors[clicked ? GUI_COLOR_ACTIVE : focused ? GUI_COLOR_FOCUSED : GUI_COLOR_PANE]);
 
@@ -1786,7 +1781,7 @@ inline void ScrollPanelVertical(ivec4& clientBounds, int32_t width, int32_t heig
 Layout guiBeginScrollPanel(int width, int height, int* offsetX, int* offsetY, uint32_t margin, uint32_t flags) {
 	Layout ans = guiBeginPanel();
 	const ivec4 bounds = guiLayoutGetBounds(false);
-	ivec4 clientBounds;
+	ivec4 clientBounds = {};
 
 	ScrollPanelVertical(clientBounds, width, height, offsetX, offsetY);
 
@@ -1959,14 +1954,10 @@ void guiSetLayout(const Layout& layout) {
 	__imgui_context->layout.elementIndex = 0;
 	switch (__imgui_context->layout.type) {
 	case GUI_LAYOUT_BORDER :
-		if (__imgui_context->layout.border.header + __imgui_context->layout.border.body > 1.0f) {
-			assert(__imgui_context->layout.border.header + __imgui_context->layout.border.body <= 1.0f);
-		}
-		__imgui_context->layout.border.body = 1.0f - (__imgui_context->layout.border.header + __imgui_context->layout.border.footer);
 		break;
 	case GUI_LAYOUT_GRID:
-		__imgui_context->layout.grid.cellSize.x = (__imgui_context->viewport.z - __imgui_context->viewport.x) / __imgui_context->layout.grid.count.x;
-		__imgui_context->layout.grid.cellSize.y = (__imgui_context->viewport.w - __imgui_context->viewport.y) / __imgui_context->layout.grid.count.y;
+		__imgui_context->layout.grid.size.x = (__imgui_context->viewport.z - __imgui_context->viewport.x) / __imgui_context->layout.grid.count.x;
+		__imgui_context->layout.grid.size.y = (__imgui_context->viewport.w - __imgui_context->viewport.y) / __imgui_context->layout.grid.count.y;
 		break;
 	case GUI_LAYOUT_SPLIT :
 		if (__imgui_context->layout.split.weight < 0) {

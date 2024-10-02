@@ -8,6 +8,8 @@
 #include "icons.h"
 #include "desktop.h"
 
+static const uint32_t WINDOW_WIDTH = 1024;
+static const uint32_t WINDOW_HEIGHT = 720;
 static const uint32_t FONT_BITMAP_WIDTH = 512;
 static const uint32_t FONT_BITMAP_HEIGHT = 512;
 static const float    FONT_SIZE = 16.0f;
@@ -137,9 +139,6 @@ void drawIcon(GUIContext* context, int32_t id, const ivec4& bounds, const color_
 }
 
 int main(int argc, char* argv[]) {
-	const uint32_t WINDOW_WIDTH = 1024;
-	const uint32_t WINDOW_HEIGHT = 720;
-
 	// Create window
 	WCanvas canvas(WINDOW_WIDTH, WINDOW_HEIGHT, 32, "Immediate Mode GUI");
 	uint32_t* pixelBuffer = (uint32_t*)canvas.getPixelBuffer();
@@ -169,6 +168,7 @@ int main(int argc, char* argv[]) {
 	gui.keyMap[GUI_KEY_DOWN  ] = 0x74;
 	gui.keyMap[GUI_KEY_DELETE] = 0x77;
 	guiSetContext(&gui);
+	// guiSetLayout(GridLayout(1, 1));
 
 	// Init demos
 	desktopDemoInit();
@@ -181,10 +181,10 @@ int main(int argc, char* argv[]) {
 		while (canvas.getEvent(event)) {
 			switch (event.type) {
 			case WEvent::Unknown :
-			case WEvent::KeyReleased :
-				break;
 			case WEvent::WindowClose :
 				running = false;
+				break;
+			case WEvent::KeyReleased :
 				break;
 			case WEvent::KeyPressed :
 				(event.ascii == '\0') ? guiOnKeyEvent(event.keyCode, true) : guiOnCharEvent(event.ascii);
@@ -198,6 +198,7 @@ int main(int argc, char* argv[]) {
 				break;
 			case WEvent::ButtonReleased :
 				WMOnButtonEvent(event.button - 1, GUI_BUTTON_RELEASED);
+				if (event.button == 3) showControlPanel();
 				break;
 			case WEvent::WheelDown :
 				guiOnMouseWheelEvent(1);
@@ -210,6 +211,7 @@ int main(int argc, char* argv[]) {
 
 		memset(pixelBuffer, 100, WINDOW_WIDTH * WINDOW_HEIGHT * 4);
 		GUIFrame() {
+			Label("Right click to display the control panel");
 			desktopDemo();
 		}
 		canvas.blit();

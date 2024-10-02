@@ -8,6 +8,20 @@
 
 /** Browser **/
 void browserPanel() {
+	auto addressPanel = []() {
+		Panel(BorderLayout(GUI_HORIZONTAL, 0.2f, 0.1f)) {
+			Panel(GridLayout(3, 1)) {
+				Button("<");
+				Button(GUI_ICON_REFRESH);
+				Button(GUI_ICON_HOME);
+			}
+			static int carrot = -1;
+			static char address[32] = "www.test.org";
+			TextBox(address, sizeof(address), carrot);
+			Button("...");
+		}
+	};
+
 	auto headerPanel = []() {
 		Label("Header", GUI_FLAGS_LABEL | GUI_BACKGROUND | GUI_OUTLINE);
 	};
@@ -55,10 +69,13 @@ void browserPanel() {
 		Label("Footer", GUI_FLAGS_LABEL | GUI_BACKGROUND | GUI_OUTLINE);
 	};
 
-	Panel(BorderLayout(GUI_VERTICAL, 0.15f, 0.15f)) {
-		headerPanel();
-		bodyPanel();
-		footerPanel();
+	Panel(FixSplitLayout(GUI_VERTICAL, 25)) {
+		addressPanel();
+		Panel(BorderLayout(GUI_VERTICAL, 0.15f, 0.15f)) {
+			headerPanel();
+			bodyPanel();
+			footerPanel();
+		}
 	}
 }
 
@@ -464,34 +481,34 @@ void ticTacToePanel() {
 	const char* CELL_LABEL[] = { "", "X", "O" };
 	
 	static int state = 0;
-	static int cells[9] = {};
-	static float proc = 0.2f;
+	static uint8_t cells[9] = {};
+	static float proc = 0.25f;
 	static int scoreX = 0;
 	static int scoreO = 0;
 	
-	char text[32];
+	char text[16];
 	
-	SplitPanel(GUI_HORIZONTAL, proc) {
-		Panel(GridLayout(1, 20)) {
-			DummyElement(1);
-			snprintf(text, 32, "X's score: %d", scoreX);
+	SplitPanel(GUI_VERTICAL, proc) {
+		Panel(GridLayout(1, 2, 0)) {
+			snprintf(text, sizeof(text), "X %.2d : %.2d O", scoreX, scoreO);
 			Label(text);
-			snprintf(text, 32, "O's score: %d", scoreO);
-			Label(text);
-			if (Button("Reset")) {
-				scoreX = scoreO = 0;
+			Panel(GridLayout(2, 1)) {
+				if (Button("Reset score")) {
+					scoreX = scoreO = 0;
+				}
+				if (Button("Restart")) {
+					state = 0;
+				}
 			}
 		}
 		Panel() {
 			switch (state) {
-			case 0 :
-				for (uint32_t index = 0; index < 9; ++index) {
-					cells[index] = 0;
-				}
+			case 0 : // Initialize
+				memset(cells, 0, sizeof(cells));
 				state = 1;
 				break;
-			case 1 :
-			case 2 :
+			case 1 : // X's turn
+			case 2 : // O's turn
 				Panel(GridLayout(3, 3)) {
 					for (uint32_t index = 0; index < 9; ++index) {
 						if (Button(CELL_LABEL[cells[index]]) && (cells[index] == 0)) {
@@ -530,25 +547,17 @@ void ticTacToePanel() {
 					}
 				}
 				break;
-			case 3 :
-			case 4 :
+			case 3 : // X won
+			case 4 : // O won
 				Panel(BorderLayout(GUI_HORIZONTAL)) {
 					DummyElement();
-					Panel(GridLayout(1, 10)) {
-						DummyElement(3);
-						Label(MESSAGES[state]);
-						if (Button("Restart")) {
-							state = 0;
-						}
-					}
+					Label(MESSAGES[state]);
 				}
 				break;
 			}
 		}
-		ivec2 mpos = guiGetContext()->mousePosition;
-		mpos.x += 15;
-		mpos.y += 15;
-		guiDrawText((((state - 1) % 2) ? "O" : "X"), {mpos.x, mpos.y, mpos.x + 15, mpos.y + 15}, {255, 255, 255, 255}, 0);
+		ivec2 cursor = guiGetContext()->mousePosition;
+		guiDrawText((((state - 1) % 2) ? "O" : "X"), {cursor.x + 15, cursor.y + 15, cursor.x + 30, cursor.y + 30}, {255, 255, 255, 255});
 	}
 }
 

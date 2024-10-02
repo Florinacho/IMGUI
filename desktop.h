@@ -5,8 +5,7 @@
 #include "demos.h"
 
 enum WindowID {
-	WID_PAN1,
-	WID_PAN2,
+	WID_CTRL,
 	WID_TEST,
 	WID_BRWS,
 	WID_XO,
@@ -31,7 +30,7 @@ void testsPanel() {
 	}
 }
 
-void startPanel();
+void controlPanel();
 
 struct WindowInfo2 {
 	ivec4 bounds;
@@ -43,15 +42,9 @@ struct WindowInfo2 {
 
 static WindowInfo2 windows[] = {
 	{
-		{0, 0, 50, 50},
+		{0, 0, 150, 250},
 		"", "",
-		startPanel,
-		GUI_ENABLED | GUI_BACKGROUND | GUI_FOREGROUND | GUI_OUTLINE | GUI_VISIBLE,
-	},
-	{
-		{0, 0, 150, 720},
-		"", "",
-		startPanel,
+		controlPanel,
 		GUI_ENABLED | GUI_BACKGROUND | GUI_FOREGROUND | GUI_OUTLINE | GUI_VISIBLE,
 	},	
 	{
@@ -97,7 +90,7 @@ static WindowInfo2 windows[] = {
 		GUI_ENABLED | GUI_BACKGROUND | GUI_FOREGROUND | GUI_OUTLINE | GUI_ALIGN_CENTER | GUI_WINDOW_MOVE | GUI_WINDOW_DECORATION | GUI_WINDOW_SIZE,
 	},
 	{
-		{50, 50, 850, 650},
+		{50, 50, 300, 350},
 		"TicTacToe", "",
 		ticTacToePanel,
 		GUI_ENABLED | GUI_BACKGROUND | GUI_FOREGROUND | GUI_OUTLINE | GUI_ALIGN_CENTER | GUI_WINDOW_MOVE | GUI_WINDOW_DECORATION | GUI_WINDOW_SIZE,
@@ -110,28 +103,31 @@ static WindowInfo2 windows[] = {
 	},
 };
 
-void startPanel() {
-	if (windows[WID_PAN2].flags & GUI_VISIBLE) {
-			Panel(GridLayout(1, 600 / 25)) {
-				for (uint32_t windowID = WID_TEST; windowID < WID_COUNT; ++windowID) {
-					bool visible = (windows[windowID].flags & GUI_VISIBLE);
+void controlPanel() {
+	Panel(GridLayout(1, WID_COUNT + 1)) {
+		for (uint32_t windowID = WID_TEST; windowID < WID_COUNT; ++windowID) {
+			bool visible = (windows[windowID].flags & GUI_VISIBLE);
 
-					Panel(SplitLayout(GUI_HORIZONTAL, 0.8f)) {
-						Label(windows[windowID].title, GUI_VISIBLE | GUI_FOREGROUND | GUI_ALIGN_LEFT);
-						Toggle(visible);
-						if (visible) {
-							windows[windowID].flags |= GUI_VISIBLE;
-						} else {
-							windows[windowID].flags &= ~GUI_VISIBLE;
-						}
-					}
+			Panel(SplitLayout(GUI_HORIZONTAL, 0.8f)) {
+				Label(windows[windowID].title, GUI_VISIBLE | GUI_FOREGROUND | GUI_ALIGN_LEFT);
+				Toggle(visible);
+				if (visible) {
+					windows[windowID].flags |= GUI_VISIBLE;
+				} else {
+					windows[windowID].flags &= ~GUI_VISIBLE;
 				}
 			}
-	} else {
-		if (Button(">>")) {
-			windows[WID_PAN2].flags |=  GUI_VISIBLE;
-			WMBringIDToFront(WID_PAN2);
-			guiGetContext()->windowManager.modal = WID_PAN2;
+		}
+
+		if (Button("Show all")) {
+			for (uint32_t windowID = WID_TEST; windowID < WID_COUNT; ++windowID) {
+				windows[windowID].flags |= GUI_VISIBLE;
+			}
+		}
+		if (Button("Hide all")) {
+			for (uint32_t windowID = WID_TEST; windowID < WID_COUNT; ++windowID) {
+				windows[windowID].flags &= ~GUI_VISIBLE;
+			}
 		}
 	}
 }
@@ -140,8 +136,8 @@ void desktopDemoInit() {
 	for (uint32_t windowID = 0; windowID < WID_COUNT; ++windowID) {
 		WMRegister(&windows[windowID].bounds, &windows[windowID].flags, windowID);
 	}
-	WMBringIDToFront(WID_PAN2);
-	guiGetContext()->windowManager.modal = WID_PAN2;
+	WMBringIDToFront(WID_CTRL);
+	guiGetContext()->windowManager.modal = WID_CTRL;
 	guiGetContext()->windowManager.flags = WMF_NONE;
 }
 
@@ -158,6 +154,30 @@ void desktopDemo() {
 		}
 	}
 	gui->events_enabled = events_enabled_backup;
+}
+
+void showControlPanel() {
+	static const uint32_t PANEL_WIDTH  = 150;
+	static const uint32_t PANEL_HEIGHT = (WID_COUNT + 2) * 20;
+
+	windows[WID_CTRL].bounds.x = GetMousePosition().x;
+	windows[WID_CTRL].bounds.y = GetMousePosition().y;
+	windows[WID_CTRL].bounds.z = windows[WID_CTRL].bounds.x + PANEL_WIDTH;
+	windows[WID_CTRL].bounds.w = windows[WID_CTRL].bounds.y + PANEL_HEIGHT;
+
+	if (windows[WID_CTRL].bounds.z > 1024) {
+		windows[WID_CTRL].bounds.z = windows[WID_CTRL].bounds.x;
+		windows[WID_CTRL].bounds.x -= PANEL_WIDTH;
+	}
+
+	if (windows[WID_CTRL].bounds.w > 720) {
+		windows[WID_CTRL].bounds.w = windows[WID_CTRL].bounds.y;
+		windows[WID_CTRL].bounds.y -= PANEL_HEIGHT;
+	}
+
+	WMBringIDToFront(WID_CTRL);
+	guiGetContext()->windowManager.modal = WID_CTRL;
+	windows[WID_CTRL].flags |=  GUI_VISIBLE;
 }
 
 #endif // __DEMO_DESKTOP_H__
