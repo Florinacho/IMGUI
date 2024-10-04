@@ -15,9 +15,12 @@ enum WindowID {
 	WID_PLYR,
 	WID_THEM,
 	WID_MINE,
+	WID_ICON,
 
 	WID_COUNT
 };
+
+void controlPanel();
 
 void testsPanel() {
 	static int tab = 0;
@@ -29,8 +32,6 @@ void testsPanel() {
 		}
 	}
 }
-
-void controlPanel();
 
 struct WindowInfo2 {
 	ivec4 bounds;
@@ -101,6 +102,12 @@ static WindowInfo2 windows[] = {
 		minesweeperPanel,
 		GUI_ENABLED | GUI_BACKGROUND | GUI_FOREGROUND | GUI_OUTLINE | GUI_ALIGN_CENTER | GUI_WINDOW_MOVE | GUI_WINDOW_DECORATION | GUI_WINDOW_SIZE,
 	},
+	{
+		{100, 100, 400, 300},
+		"Icon viewer", "",
+		iconViewerPanel,
+		GUI_ENABLED | GUI_BACKGROUND | GUI_FOREGROUND | GUI_OUTLINE | GUI_ALIGN_CENTER | GUI_WINDOW_MOVE | GUI_WINDOW_DECORATION | GUI_WINDOW_SIZE,
+	},
 };
 
 void controlPanel() {
@@ -120,12 +127,13 @@ void controlPanel() {
 		}
 
 		if (Button("Show all")) {
-			for (uint32_t windowID = WID_TEST; windowID < WID_COUNT; ++windowID) {
+			for (uint32_t windowID = 0; windowID < WID_COUNT; ++windowID) {
 				windows[windowID].flags |= GUI_VISIBLE;
+				windows[WID_CTRL].flags &= ~GUI_VISIBLE;
 			}
 		}
 		if (Button("Hide all")) {
-			for (uint32_t windowID = WID_TEST; windowID < WID_COUNT; ++windowID) {
+			for (uint32_t windowID = 0; windowID < WID_COUNT; ++windowID) {
 				windows[windowID].flags &= ~GUI_VISIBLE;
 			}
 		}

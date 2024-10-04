@@ -561,4 +561,45 @@ void ticTacToePanel() {
 	}
 }
 
+/** Icon viewer **/
+
+void menuEntry(const char* label, bool& value) {
+	Panel(FixSplitLayout(GUI_HORIZONTAL, -30)) {
+		Label(label, GUI_VISIBLE | GUI_FOREGROUND | GUI_ALIGN_TOP | GUI_ALIGN_BOTTOM);
+		Toggle(value);
+	}
+}
+
+void iconViewerPanel() {
+	static int icon = GUI_ICON_HOME;
+	static bool scale = false;
+	static bool left = false;
+	static bool down = false;
+	static bool right = false;
+	static bool up = false;
+
+	uint32_t flags = GUI_VISIBLE | GUI_FOREGROUND | GUI_OUTLINE;
+	if (scale) flags |= GUI_WINDOW_SIZE;
+	if (left) flags |= GUI_ALIGN_LEFT;
+	if (down) flags |= GUI_ALIGN_BOTTOM;
+	if (right) flags |= GUI_ALIGN_RIGHT;
+	if (up) flags |= GUI_ALIGN_TOP;
+
+	Panel(SplitLayout(GUI_HORIZONTAL, 0.4f, 2)) {
+		Panel(GridLayout(1, 6)) {
+			guiGetContext()->layout.max.y = 25;
+			Panel(FixSplitLayout(GUI_HORIZONTAL, -60)) {
+				Label("Icon", GUI_VISIBLE | GUI_FOREGROUND | GUI_ALIGN_TOP | GUI_ALIGN_BOTTOM);
+				if (Spinner(icon)) icon = std::clamp(icon, 0, GUI_ICON_CUSTOM);
+			}
+			menuEntry("Resize", scale);
+			menuEntry("Left ", left);
+			menuEntry("Down ", down);
+			menuEntry("Right", right);
+			menuEntry("Up   ", up);
+		}
+		Label(icon, flags);
+	}
+}
+
 #endif // __DEMOS_H__

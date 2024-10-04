@@ -238,7 +238,7 @@ typedef void  (*DrawLineProc)(GUIContext*, const ivec2&, const ivec2&, const col
 typedef void  (*DrawQuadProc)(GUIContext*, const ivec4&, const color_t&);
 typedef void  (*DrawCharProc)(GUIContext*, char c, float pos_x, float pos_y, const color_t& color);
 typedef void  (*DrawTextProc)(GUIContext*, const char*, const ivec4&, const color_t&, uint32_t);
-typedef void  (*DrawIconProc)(GUIContext*, int32_t, const ivec4&, const color_t&);
+typedef void  (*DrawIconProc)(GUIContext*, int32_t, const ivec4&, const color_t&, uint32_t);
 typedef void  (*DrawBorderProc)(GUIContext*, const ivec4&, const color_t&);
 typedef ivec2 (*CharSizeProc)(GUIContext*, char);
 typedef ivec2 (*TextSizeProc)(GUIContext*, const char*, uint32_t);
@@ -312,7 +312,7 @@ void guiDrawChar(char c, const ivec2& position, const color_t& color);
 void guiDrawText(const char* text, const ivec4& bounds, const color_t& color, uint32_t flags = 0);
 void guiDrawLine(const ivec2& begin, const ivec2& end, const color_t& color);
 void guiDrawQuad(const ivec4& bounds, const color_t& color);
-void guiDrawIcon(int32_t id, const ivec4& bounds, const color_t& color);
+void guiDrawIcon(int32_t id, const ivec4& bounds, const color_t& color, uint32_t flags = 0);
 void guiDrawBorder(const ivec4& rect, const color_t& color);
 
 // Events
@@ -431,25 +431,22 @@ GUIContext* guiGetContext() {
 
 // Lib tools
 void guiDrawChar(char c, const ivec2& position, const color_t& color) {
-	if (__imgui_context == NULL) {
-		return;
+	if (__imgui_context != NULL) {
+		__imgui_context->drawChar(__imgui_context, c, position.x, position.y, color);
 	}
-	__imgui_context->drawChar(__imgui_context, c, position.x, position.y, color);
 }
 
 void guiDrawText(const char* text, const ivec4& rect, const color_t& color, uint32_t flags) {
-	if (__imgui_context == NULL) {
-		return;
+	if (__imgui_context != NULL) {
+		// Clipping is done in the renderer
+		__imgui_context->drawText(__imgui_context, text, rect, color, flags);
 	}
-	// Clipping is done in the renderer
-	__imgui_context->drawText(__imgui_context, text, rect, color, flags);
 }
 
 void guiDrawLine(const ivec2& begin, const ivec2& end, const color_t& color) {
-	if (__imgui_context == NULL) {
-		return;
+	if (__imgui_context != NULL) {
+		__imgui_context->drawLine(__imgui_context, begin, end, color);
 	}
-	__imgui_context->drawLine(__imgui_context, begin, end, color);
 }
 
 void guiDrawQuad(const ivec4& rect, const color_t& color) {
@@ -463,15 +460,16 @@ void guiDrawQuad(const ivec4& rect, const color_t& color) {
 	__imgui_context->drawQuad(__imgui_context, bounds, color);
 }
 
-void guiDrawIcon(int32_t id, const ivec4& rect, const color_t& color) {
+void guiDrawIcon(int32_t id, const ivec4& rect, const color_t& color, uint32_t flags) {
 	ivec4 bounds = rect;
 	if (__imgui_context == NULL) {
 		return;
 	}
-	if (RectGetArea(__imgui_context->clip) > 0) {
-		RectClip(bounds, __imgui_context->clip);
-	}
-	__imgui_context->drawIcon(__imgui_context, id, bounds, color);
+	// This should be reated in the drawIcon proc
+	// if (RectGetArea(__imgui_context->clip) > 0) {
+	// 	RectClip(bounds, __imgui_context->clip);
+	// }
+	__imgui_context->drawIcon(__imgui_context, id, bounds, color, flags);
 }
 
 void guiDrawBorder(const ivec4& rect, const color_t& color) {
@@ -1002,7 +1000,7 @@ void Label(int32_t id, uint32_t flags) {
 
 	LabelInternal(flags, absoluteBounds);
 	if ((flags & GUI_VISIBLE) && (flags & GUI_FOREGROUND)) {
-		guiDrawIcon(id, absoluteBounds, __imgui_context->skin.colors[GUI_COLOR_TEXT]);
+		guiDrawIcon(id, absoluteBounds, __imgui_context->skin.colors[GUI_COLOR_TEXT], flags);
 	}
 }
 
@@ -1035,7 +1033,7 @@ bool Button(int32_t icon, const char* text, uint32_t flags) {
 		const int width = absoluteBounds.z - absoluteBounds.x;
 		const int height = absoluteBounds.w - absoluteBounds.y;
 		const int min = width < height ? width : height;
-		guiDrawIcon(icon, {absoluteBounds.x, absoluteBounds.y, absoluteBounds.x + min, absoluteBounds.y + min}, __imgui_context->skin.colors[(flags & GUI_ENABLED) ? GUI_COLOR_TEXT : GUI_COLOR_TEXT_DISABLED]);
+		guiDrawIcon(icon, {absoluteBounds.x, absoluteBounds.y, absoluteBounds.x + min, absoluteBounds.y + min}, __imgui_context->skin.colors[(flags & GUI_ENABLED) ? GUI_COLOR_TEXT : GUI_COLOR_TEXT_DISABLED], flags);
 		guiDrawText(text, {absoluteBounds.x + min, absoluteBounds.y, absoluteBounds.z, absoluteBounds.w}, __imgui_context->skin.colors[(flags & GUI_ENABLED) ? GUI_COLOR_TEXT : GUI_COLOR_TEXT_DISABLED], (flags & GUI_ALIGN_CENTER));
 	}
 
@@ -1058,7 +1056,7 @@ bool Button(int32_t icon, uint32_t flags) {
 	const bool ans = ButtonInternal(flags, absoluteBounds);
 
 	if ((flags & GUI_VISIBLE) && (flags & GUI_FOREGROUND)) {
-		guiDrawIcon(icon, absoluteBounds, __imgui_context->skin.colors[(flags & GUI_ENABLED) ? GUI_COLOR_TEXT : GUI_COLOR_TEXT_DISABLED]/*, (flags & GUI_ALIGN_CENTER) */);
+		guiDrawIcon(icon, absoluteBounds, __imgui_context->skin.colors[(flags & GUI_ENABLED) ? GUI_COLOR_TEXT : GUI_COLOR_TEXT_DISABLED]/*, (flags & GUI_ALIGN_CENTER) */, flags);
 	}
 
 	return ans;
@@ -1080,7 +1078,7 @@ bool CheckBox(bool &checked, uint32_t flags) {
 			guiDrawBorder(rect, __imgui_context->skin.colors[GUI_COLOR_BORDER]);
 		}
 		if ((flags & GUI_FOREGROUND) && checked) {
-			guiDrawIcon(GUI_ICON_CHECK, {rect.x + 1, rect.y + 1, rect.z - 1, rect.w - 1}, __imgui_context->skin.colors[GUI_COLOR_ACTIVE]);
+			guiDrawIcon(GUI_ICON_CHECK, {rect.x + 1, rect.y + 1, rect.z - 1, rect.w - 1}, __imgui_context->skin.colors[GUI_COLOR_ACTIVE], flags);
 		}
 	}
 	if ((flags & GUI_ENABLED) && focused && !GetMouseLeftButton() && GetLastMouseLeftButton()) {
@@ -1126,8 +1124,8 @@ bool SpinnerInternal(int& value, const char* text, int speed, uint32_t flags) {
 	static const uint32_t button_flags = BUTTON_FLAGS | (flags & BUTTON_FLAG_MASK);
 
 	const ivec4 bounds = guiLayoutGetAbsoluteBounds(false);
-	const int32_t buttonWidth = std::min(bounds.z - bounds.x, (int)__imgui_context->skin.values[GUI_VALUE_TITLEBAR_HEIGHT]);
-	const float buttonWidthProc = (float)buttonWidth/ (float)(bounds.z - bounds.x);
+	const int32_t buttonWidth = std::min((bounds.z - bounds.x) / 2, (int)__imgui_context->skin.values[GUI_VALUE_TITLEBAR_HEIGHT]);
+	const float buttonWidthProc = std::min<float>((float)buttonWidth/ (float)(bounds.z - bounds.x), 0.5f);
 	const int oldValue = value;
 
 	const bool focused = RECT_CONTAINS_POINT(bounds, GetMousePosition());// && (flags & GUI_ENABLED)) || (flags & GUI_FOCUSED));
@@ -1425,7 +1423,7 @@ bool Scrollbar(float& value, float barProc, uint8_t orientation, float step) {
 	}
 
 	const int barLength = length - 32;
-	const float buttonProc = 16.0f / (float)length;
+	const float buttonProc = std::min<float>(16.0f / (float)length, 0.5f);
 
 	Panel(BorderLayout(orientation, buttonProc, buttonProc, 0), 0, GUI_FLAGS_PANEL) {
 		if (Button(buttonIcons[0])) {
@@ -1931,7 +1929,7 @@ Layout guiBeginWindow(ivec4* rbounds, const char* title, const char* footer, uin
 
 				const bool focused = RECT_CONTAINS_POINT(sizeBounds, GetMousePosition());
 				const bool clicked = focused && GetMouseLeftButton();
-				guiDrawIcon(GUI_ICON_SIZE, sizeBounds, __imgui_context->skin.colors[clicked ? GUI_COLOR_ACTIVE : focused ? GUI_COLOR_FOCUSED : GUI_COLOR_PANE]);
+				guiDrawIcon(GUI_ICON_SIZE, sizeBounds, __imgui_context->skin.colors[clicked ? GUI_COLOR_ACTIVE : focused ? GUI_COLOR_FOCUSED : GUI_COLOR_PANE], GUI_NONE);
 			}
 		}
 		__imgui_context->viewport = contentBounds;
@@ -1944,6 +1942,7 @@ Layout guiBeginWindow(ivec4* rbounds, const char* title, const char* footer, uin
 		__imgui_context->viewport.z -= 1;
 		__imgui_context->viewport.w -= 1;
 	}
+	// guiDrawQuad(__imgui_context->viewport, {255, 255, 255, 255});
 
 	*rbounds = bounds;
 	return ans;

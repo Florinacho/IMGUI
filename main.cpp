@@ -114,12 +114,69 @@ void drawChar(GUIContext* context, char c, float pos_x, float pos_y, const color
 		}
 	}
 }
+#include <assert.h>
 
-void drawIcon(GUIContext* context, int32_t id, const ivec4& bounds, const color_t& color) {
+void drawIconScale(GUIContext* context, int32_t id, const ivec4& bounds, const color_t& color, uint32_t flags) {
+	const float sx = float(bounds.z - bounds.x) / float(ICON_LENGTH);
+	const float sy = float(bounds.w - bounds.y) / float(ICON_LENGTH);
+	const float srx = 1.0f / sx;
+	const float sry = 1.0f / sy;
+
 	const uint32_t pixel = color.x << 16 | color.y << 8 | color.z << 0;
-	const int32_t length = std::min(bounds.z - bounds.x, bounds.w - bounds.y);
-	const ivec2 boundsMiddle = {(bounds.z - bounds.x) / 2, (bounds.w - bounds.y) / 2};
 	uint32_t* pixels = (uint32_t*)context->opaqueData;
+
+	if ((id < 0) || (id > (int)(sizeof(ICONS) / ICON_SIZE))) {
+		return;
+	}
+
+	for (int32_t y = 0; y < int(float(ICON_LENGTH) * sy + 0.0f); ++y) {
+		for (int32_t x = 0; x < int(float(ICON_LENGTH) * sx + 0.0f); ++x) {
+			const uint32_t srcIndex = uint32_t(id * ICON_SIZE + int(float(y) * sry + 0.0f) * ICON_LENGTH + int(float(x) * srx + 0.0f));
+			const uint8_t value = ICONS[srcIndex];
+			const int32_t py = bounds.y + y;
+			const int32_t px = bounds.x + x;
+			const uint32_t dstIndex = py * context->extents.x + px;
+			if (py >= 0 && py < context->extents.y && px >= 0 && px < context->extents.x) {
+				pixels[dstIndex] = pixels[dstIndex] * !value + pixel * value;
+			}
+		}
+	}
+}
+
+void drawIconFix(GUIContext* context, int32_t id, const ivec4& bounds, const color_t& color, uint32_t flags) {
+	const int32_t length = std::min(bounds.z - bounds.x, bounds.w - bounds.y);
+	const uint32_t pixel = color.x << 16 | color.y << 8 | color.z << 0;
+	uint32_t* pixels = (uint32_t*)context->opaqueData;
+	ivec2 boundsMiddle = {};
+
+	switch (flags & (GUI_ALIGN_LEFT | GUI_ALIGN_RIGHT)) {
+	case GUI_ALIGN_LEFT :
+		boundsMiddle.x = bounds.x;
+		break;
+	case GUI_ALIGN_RIGHT :
+		boundsMiddle.x = bounds.z - ICON_LENGTH;
+		break;
+	case GUI_ALIGN_LEFT | GUI_ALIGN_RIGHT :
+		boundsMiddle.x = (bounds.z + bounds.x) / 2 - ICON_LENGTH / 2;
+		break;
+	default:
+		boundsMiddle.x = bounds.x;
+		break;
+	}
+	switch (flags & (GUI_ALIGN_TOP | GUI_ALIGN_BOTTOM)) {
+	case GUI_ALIGN_TOP :
+		boundsMiddle.y = bounds.y;
+		break;
+	case GUI_ALIGN_BOTTOM :
+		boundsMiddle.y = bounds.w - ICON_LENGTH;
+		break;
+	case GUI_ALIGN_TOP | GUI_ALIGN_BOTTOM :
+		boundsMiddle.y = (bounds.w + bounds.y) / 2 - ICON_LENGTH / 2;
+		break;
+	default:
+		boundsMiddle.y = bounds.y;
+		break;
+	}
 
 	if ((length < ICON_LENGTH) || (id < 0) || (id > (int)(sizeof(ICONS) / ICON_SIZE))) {
 		return;
@@ -128,13 +185,21 @@ void drawIcon(GUIContext* context, int32_t id, const ivec4& bounds, const color_
 	for (int32_t y = 0; y < ICON_LENGTH; ++y) {
 		for (int32_t x = 0; x < ICON_LENGTH; ++x) {
 			const uint8_t value = ICONS[id * ICON_SIZE + y * ICON_LENGTH + x];
-			const int32_t py = bounds.y + boundsMiddle.y + y - ICON_HALF_LENGTH;
-			const int32_t px = bounds.x + boundsMiddle.x + x - ICON_HALF_LENGTH;
+			const int32_t py = boundsMiddle.y + y;
+			const int32_t px = boundsMiddle.x + x;
 			const uint32_t dstIndex = py * context->extents.x + px;
 			if (py >= 0 && py < context->extents.y && px >= 0 && px < context->extents.x) {
 				pixels[dstIndex] = pixels[dstIndex] * !value + pixel * value;
 			}
 		}
+	}
+}
+
+void drawIcon(GUIContext* context, int32_t id, const ivec4& bounds, const color_t& color, uint32_t flags) {
+	if (flags & GUI_WINDOW_SIZE) {
+		drawIconScale(context, id, bounds, color, flags);
+	} else {
+		drawIconFix(context, id, bounds, color, flags);
 	}
 }
 
