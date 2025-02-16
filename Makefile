@@ -4,7 +4,7 @@ OUTPUT=main.out
 INCLUDE=./ ./WindowCanvas/source
 LIB_DIRS=WindowCanvas/lib
 LIB_FILES=wcanvas
-C_FLAGS=-O3 -g3 -Wall
+C_FLAGS=-O3 -g3 -Wall -std=c++23
 L_FLAGS=
 C_FILES=main.cpp
 

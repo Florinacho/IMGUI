@@ -109,6 +109,73 @@ void calculatorPanel() {
 }
 
 
+/*** Sheet ***/
+typedef char SheetBuffer[32];
+static const uint32_t SHEET_MAX_ROW = 8;
+static const uint32_t SHEET_MAX_COL = 8;
+void sheetToolPanel(int rows, int cols) {
+	Panel(FixSplitLayout(GUI_HORIZONTAL, 200)) {
+		Panel(GridLayout(2, 1)) {
+			if (Spinner(rows)) {
+				rows = std::clamp<int32_t>(rows, 1, SHEET_MAX_ROW);
+			}
+			if (Spinner(cols)) {
+				cols = std::clamp<int32_t>(cols, 1, SHEET_MAX_COL);
+			}
+		}
+		DummyElement();
+	}
+}
+void sheetRowPanel(int32_t rowIndex, uint32_t colCount, SheetBuffer buffer[8][8], int carrot[8][8]) {
+	char rowLabelText[16];
+	snprintf(rowLabelText, sizeof(rowLabelText), "%c", 'A' + rowIndex);
+
+	Panel(FixSplitLayout(GUI_HORIZONTAL, 25)) {
+		Label(rowLabelText);
+		Panel(GridLayout(colCount, 1, 0)) {
+			for (uint32_t col = 0; col < colCount; ++col) {
+				TextBox(buffer[rowIndex][col], sizeof(32), carrot[rowIndex][col]);
+			}
+		}
+	}
+}
+
+void sheetPanel() {
+	static SheetBuffer buffer[SHEET_MAX_ROW][SHEET_MAX_COL] = {'\0'};
+	static int carrot[SHEET_MAX_COL][SHEET_MAX_ROW] = {
+		{ 0, -1, -1, -1},
+		{-1, -1, -1, -1},
+		{-1, -1, -1, -1},
+		{-1, -1, -1, -1},
+		{-1, -1, -1, -1},
+		{-1, -1, -1, -1},
+		{-1, -1, -1, -1},
+		{-1, -1, -1, -1},
+	};
+	static int rows = 8;
+	static int cols = 4;
+	char tmp[16];
+
+	Panel(FixSplitLayout(GUI_VERTICAL, 20)) {
+		sheetToolPanel(rows, cols);
+		Panel(FixSplitLayout(GUI_VERTICAL, 20)) {
+			// Column header
+			Panel(GridLayout(cols, 1)) {
+				for (int32_t col = 0; col < cols; ++col) {
+					snprintf(tmp, sizeof(tmp), "%d", col);
+					Label(tmp);
+				}
+			}
+			Panel(GridLayout(1, rows, 0)) {
+				for (int32_t row = 0; row < rows; ++row) {
+					sheetRowPanel(row, cols, buffer, carrot);
+				}
+			}
+		}
+	}
+}
+
+
 /*** Chat ***/
 void chatPanel() {
 	static float hSplit = 0.2f;
